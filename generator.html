@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generar Boletos — Al Cine con Papá</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="seats.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    .gen-layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .gen-layout { grid-template-columns: 1fr; } }
+
+    .type-toggle { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .type-btn {
+      flex: 1; padding: 0.9rem; border-radius: 14px; cursor: pointer;
+      font-family: 'Montserrat', sans-serif; font-size: 0.9rem; font-weight: 700;
+      border: 2px solid var(--border); background: var(--bg-card2); color: var(--text-muted);
+      text-align: center; transition: all 0.25s;
+    }
+    .type-btn.active.padre { border-color: var(--gold); background: rgba(245,197,24,0.1); color: var(--gold); }
+    .type-btn.active.hijo { border-color: #82aaff; background: rgba(130,170,255,0.1); color: #82aaff; }
+    .price-badge { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* Seat selection button */
+    .seat-select-btn {
+      width: 100%; padding: 1rem; border-radius: 14px; cursor: pointer;
+      font-family: 'Montserrat', sans-serif; font-size: 0.9rem; font-weight: 700;
+      border: 2px dashed var(--border); background: var(--bg-card2); color: var(--text-muted);
+      text-align: center; transition: all 0.25s; margin-bottom: 0.75rem;
+    }
+    .seat-select-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(245,197,24,0.07); }
+    .seat-select-btn.has-seat { border-style: solid; border-color: var(--gold); background: rgba(245,197,24,0.1); color: var(--gold); }
+
+    /* Ticket card in list */
+    .ticket-card {
+      display: flex; align-items: center; gap: 1rem; padding: 1rem 1.1rem;
+      background: var(--bg-card2); border: 1px solid var(--border); border-radius: 14px;
+      margin-bottom: 0.6rem; transition: all 0.2s; cursor: pointer; position: relative;
+    }
+    .ticket-card:hover { border-color: var(--border-hover); background: var(--bg-card3); }
+    .ticket-card.selected { border-color: var(--gold); background: rgba(245,197,24,0.05); }
+    .ticket-card .tc-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .ticket-card .tc-info { flex: 1; min-width: 0; }
+    .ticket-card .tc-id { font-size: 0.68rem; font-family: monospace; color: var(--text-dim); }
+    .ticket-card .tc-title { font-size: 0.88rem; font-weight: 600; margin: 0.1rem 0; }
+    .ticket-card .tc-sub { font-size: 0.75rem; color: var(--text-muted); }
+    .ticket-card .tc-seat { font-size: 0.72rem; color: var(--gold); font-weight: 700; margin-top: 0.15rem; }
+
+    /* Print ticket */
+    .print-ticket { background: #fff; color: #111; border-radius: 16px; width: 310px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); font-family: 'Montserrat', sans-serif; }
+    .pt-header { padding: 1.1rem 1.5rem 0.9rem; text-align: center; border-bottom: 2px dashed #e0e0e0; }
+    .pt-school { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #888; margin-bottom: 0.2rem; }
+    .pt-event { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 800; color: #111; line-height: 1.2; }
+    .pt-body { padding: 1rem 1.5rem; text-align: center; }
+    .pt-type-badge { display: inline-block; padding: 0.3rem 0.9rem; border-radius: 100px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.6rem; }
+    .pt-type-badge.padre { background: #fff3cd; color: #856404; }
+    .pt-type-badge.hijo { background: #d1ecf1; color: #0c5460; }
+    .pt-movie { font-size: 0.95rem; font-weight: 700; color: #222; margin-bottom: 0.2rem; }
+    .pt-sala { font-size: 0.78rem; color: #666; margin-bottom: 0.5rem; }
+    #pt-qr-container { display: flex; justify-content: center; margin-bottom: 0.75rem; }
+    .pt-footer { background: #f5f5f5; padding: 0.75rem 1.5rem; text-align: center; border-top: 2px dashed #e0e0e0; }
+    .pt-id { font-family: monospace; font-size: 0.68rem; color: #aaa; word-break: break-all; }
+    .pt-price { font-size: 0.95rem; font-weight: 700; color: #333; margin-bottom: 0.15rem; }
+    .pt-event-date { font-size: 0.65rem; color: #aaa; margin-top: 0.15rem; }
+
+    .tickets-scroll { max-height: 440px; overflow-y: auto; }
+    .tickets-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+
+    /* Seat count chips */
+    .seat-counts { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .seat-count-chip {
+      padding: 0.3rem 0.7rem; border-radius: 100px; font-size: 0.72rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.3rem;
+    }
+
+    /* Bulk section */
+    .bulk-section { background: var(--bg-card2); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="page-loading" id="page-loading">
+    <div class="load-icon">🎫</div>
+    <div class="load-text">Conectando al servidor...</div>
+  </div>
+
+  <!-- ── SEAT MAP MODAL ── -->
+  <div class="seat-modal-overlay" id="seat-modal" style="display:none;" onclick="closeSeatModalOnOverlay(event)">
+    <div class="seat-modal-box">
+      <h2>🎭 Selección de Asientos</h2>
+      <p class="modal-sub" id="seat-modal-sub">Elige uno o varios asientos disponibles (clic para seleccionar/deseleccionar)</p>
+
+      <div class="cinema-screen" id="seat-modal-screen">◀ PANTALLA ▶</div>
+
+      <div class="seat-map-wrap">
+        <div class="seat-map" id="seat-modal-map"></div>
+      </div>
+
+      <div class="seat-legend">
+        <div class="legend-item"><div class="legend-seat" style="background:var(--bg-card3);border-color:rgba(255,255,255,0.15);"></div>Disponible</div>
+        <div class="legend-item"><div class="legend-seat" style="background:rgba(245,197,24,0.4);border-color:var(--gold);"></div>Seleccionado</div>
+        <div class="legend-item"><div class="legend-seat" style="background:rgba(245,197,24,0.22);border-color:var(--gold);"></div>Padre vendido</div>
+        <div class="legend-item"><div class="legend-seat" style="background:rgba(130,170,255,0.22);border-color:#82aaff;"></div>Hijo vendido</div>
+        <div class="legend-item"><div class="legend-seat" style="background:rgba(0,230,118,0.22);border-color:var(--success);"></div>Ya ingresó</div>
+      </div>
+
+      <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="closeSeatModal()">Cancelar</button>
+        <button class="btn btn-primary" style="flex:2;" id="btn-confirm-seat" onclick="confirmSeat()" disabled>✔ Confirmar <span id="confirm-seat-count"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🎬</span>
+      <div>
+        <div class="logo-text">Al Cine con Papá</div>
+        <div class="logo-sub">Colegio El Educador</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html"><span class="nav-icon">🏠</span><span>Inicio</span></a></li>
+      <li><a href="scanner.html"><span class="nav-icon">📱</span><span>Escáner</span></a></li>
+      <li><a href="generator.html" class="active"><span class="nav-icon">🎫</span><span>Boletos</span></a></li>
+      <li><a href="reporte.html"><span class="nav-icon">📊</span><span>Reporte</span></a></li>
+      <li><a href="admin.html"><span class="nav-icon">⚙️</span><span>Config</span></a></li>
+    </ul>
+    <div class="conn-status-wrap" style="margin-left:1rem;">
+      <span class="conn-dot disconnected" id="conn-indicator" title="Conectando..."></span>
+    </div>
+  </nav>
+
+  <main class="page">
+    <div class="container">
+      <div class="page-header">
+        <div class="eyebrow">🎫 Emisión de Boletos</div>
+        <h1>Generar Boletos QR</h1>
+        <p>Crea boletos con asiento asignado para padres e hijos</p>
+      </div>
+
+      <div class="gen-layout">
+
+        <!-- LEFT: Form -->
+        <div>
+          <div class="card">
+            <div class="card-title">🎫 Nuevo Boleto</div>
+
+            <div class="type-toggle">
+              <button class="type-btn padre active" id="btn-padre" onclick="setTipo('padre')">
+                👨 Padre<br><span class="price-badge" id="badge-padre"></span>
+              </button>
+              <button class="type-btn hijo" id="btn-hijo" onclick="setTipo('hijo')">
+                👧 Hijo/a<br><span class="price-badge" id="badge-hijo"></span>
+              </button>
+            </div>
+
+            <div class="form-group">
+              <label>Sala</label>
+              <select id="gen-sala" onchange="onSalaChange()"></select>
+            </div>
+
+            <div class="form-group">
+              <label>Película</label>
+              <select id="gen-pelicula"></select>
+            </div>
+
+            <!-- Seat selector -->
+            <label>Asiento</label>
+            <div class="seat-counts" id="seat-counts-info"></div>
+            <button class="seat-select-btn" id="seat-select-btn" onclick="openSeatModal()">
+              🪑 Seleccionar asiento en el mapa
+            </button>
+            <div id="seat-selected-badge" style="display:none;" class="selected-seat-badge">
+              <span>🪑</span><span id="seat-selected-text">—</span>
+              <button onclick="clearSeat()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:1rem;margin-left:0.25rem;" title="Quitar asiento">✕</button>
+            </div>
+
+            <br>
+            <button class="btn btn-primary btn-block btn-lg" onclick="generarBoleto()">✨ Generar Boleto</button>
+
+            <hr class="sep">
+
+            <!-- Bulk -->
+            <div class="bulk-section">
+              <div class="card-title">📦 Generación en Lote</div>
+              <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                Asigna asientos automáticamente en orden de fila/columna
+              </p>
+              <div class="grid-2" style="margin-bottom:0.75rem;">
+                <div class="form-group" style="margin:0;">
+                  <label>Padres</label>
+                  <input type="number" id="bulk-padres" value="10" min="0" max="500">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Hijos</label>
+                  <input type="number" id="bulk-hijos" value="10" min="0" max="500">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Sala para el lote</label>
+                <select id="bulk-sala" onchange="updateBulkPeliculaSelector()"></select>
+              </div>
+              <div class="form-group">
+                <label>Película</label>
+                <select id="bulk-pelicula"></select>
+              </div>
+              <button class="btn btn-ghost btn-block" onclick="generarLote()">📦 Generar Lote</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Preview + list -->
+        <div>
+          <!-- Ticket preview -->
+          <div class="card" id="preview-card">
+            <div class="card-title">👁️ Vista Previa del Último Boleto</div>
+            <div style="display:flex; justify-content:center; padding:1rem 0;">
+              <div class="print-ticket">
+                <div class="pt-header">
+                  <div class="pt-school">Colegio El Educador</div>
+                  <div class="pt-event">🎬 Al Cine<br>con Papá</div>
+                </div>
+                <div class="pt-body">
+                  <div class="pt-type-badge padre" id="pt-tipo-badge">👨 Padre</div>
+                  <div class="pt-movie" id="pt-movie">—</div>
+                  <div class="pt-sala" id="pt-sala">—</div>
+                  <div class="pt-seat" id="pt-seat" style="display:none;"></div>
+                  <div id="pt-qr-container"></div>
+                </div>
+                <div class="pt-footer">
+                  <div class="pt-price" id="pt-price">$ 0</div>
+                  <div class="pt-id" id="pt-id">ID: ---</div>
+                  <div class="pt-event-date">Día del Padre · Colegio El Educador</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.75rem; margin-top:0.75rem; justify-content:center; flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+              <button class="btn" id="btn-pdf" onclick="descargarPDF()" style="background:#e53935;color:#fff;border-color:#e53935;" disabled>📄 Descargar PDF</button>
+              <button class="btn" id="btn-whatsapp" onclick="compartirWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366;" disabled>📲 WhatsApp</button>
+            </div>
+          </div>
+
+          <!-- Tickets list -->
+          <div class="card" style="margin-top:1.25rem;">
+            <div class="tickets-list-header">
+              <div class="card-title" style="margin:0;">📋 Todos los Boletos</div>
+              <span class="badge badge-gold" id="total-badge">0</span>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+              <select id="filter-tipo" onchange="renderTicketList()" style="font-size:0.8rem; padding:0.4rem 0.6rem; width:auto;">
+                <option value="">Todos los tipos</option>
+                <option value="padre">Solo Padres</option>
+                <option value="hijo">Solo Hijos</option>
+              </select>
+              <select id="filter-sala" onchange="renderTicketList()" style="font-size:0.8rem; padding:0.4rem 0.6rem; width:auto;"></select>
+            </div>
+            <div class="tickets-scroll" id="tickets-list">
+              <p style="color:var(--text-muted); font-size:.85rem; text-align:center; padding:1.5rem;">No hay boletos generados aún</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    let selectedTipo = 'padre';
+    let selectedAsientos = [];    // [{fila, col}, ...]
+    let lastBoletoId = null;
+    let qrInstance = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+    });
+
+    // Called by app.js once state is loaded
+    function onStateLoaded() {
+      document.getElementById('page-loading').style.display = 'none';
+      populateSelectors();
+      renderTicketList();
+      updatePriceBadges();
+      updateSeatCountsInfo();
+    }
+
+    // Called by app.js when WS pushes an update from another device
+    function onRemoteUpdate(event, data) {
+      renderTicketList();
+      updateSeatCountsInfo();
+    }
+
+    // ── TYPES & SELECTORS ──────────────────────────
+    function updatePriceBadges() {
+      const s = getState();
+      document.getElementById('badge-padre').textContent = fmt(s.config.precioPadre);
+      document.getElementById('badge-hijo').textContent = fmt(s.config.precioHijo);
+    }
+
+    function setTipo(tipo) {
+      selectedTipo = tipo;
+      document.getElementById('btn-padre').classList.toggle('active', tipo === 'padre');
+      document.getElementById('btn-hijo').classList.toggle('active', tipo === 'hijo');
+    }
+
+    function populateSelectors() {
+      const s = getState();
+      ['gen-sala', 'bulk-sala', 'filter-sala'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = id === 'filter-sala' ? '<option value="">Todas las salas</option>' : '';
+        s.config.salas.forEach(sala => {
+          el.innerHTML += `<option value="${sala.id}">${sala.nombre}</option>`;
+        });
+      });
+      updatePeliculaSelector();
+      updateBulkPeliculaSelector();
+    }
+
+    function updatePeliculaSelector() {
+      const s = getState();
+      const salaId = document.getElementById('gen-sala').value;
+      const pels = s.config.peliculas.filter(p => !salaId || p.sala === salaId);
+      const el = document.getElementById('gen-pelicula');
+      el.innerHTML = pels.length
+        ? pels.map(p => `<option value="${p.id}">${p.titulo} (${p.hora})</option>`).join('')
+        : '<option value="">— Sin películas —</option>';
+    }
+
+    function updateBulkPeliculaSelector() {
+      const s = getState();
+      const salaId = document.getElementById('bulk-sala').value;
+      const pels = s.config.peliculas.filter(p => !salaId || p.sala === salaId);
+      const el = document.getElementById('bulk-pelicula');
+      el.innerHTML = pels.length
+        ? pels.map(p => `<option value="${p.id}">${p.titulo} (${p.hora})</option>`).join('')
+        : '<option value="">— Sin películas —</option>';
+    }
+
+    function onSalaChange() {
+      updatePeliculaSelector();
+      clearSeat();
+      updateSeatCountsInfo();
+    }
+
+    // ── SEAT COUNT INFO ───────────────────────────
+    function updateSeatCountsInfo() {
+      const salaId = document.getElementById('gen-sala')?.value;
+      if (!salaId) return;
+      const s = getState();
+      const sala = s.config.salas.find(sl => sl.id === salaId);
+      if (!sala) return;
+      const total = (sala.filas || 8) * (sala.columnas || 10);
+      const sold = Object.values(s.boletos).filter(b => b.sala === salaId && b.asiento).length;
+      const available = total - sold;
+      const el = document.getElementById('seat-counts-info');
+      el.innerHTML = `
+        <span class="seat-count-chip badge badge-gray">🪑 ${total} total</span>
+        <span class="seat-count-chip badge badge-gold">🎫 ${sold} vendidos</span>
+        <span class="seat-count-chip badge badge-green">✅ ${available} disponibles</span>
+      `;
+    }
+
+    // ── SEAT SELECTION ────────────────────────────
+    function clearSeat() {
+      selectedAsientos = [];
+      document.getElementById('seat-selected-badge').style.display = 'none';
+      document.getElementById('seat-select-btn').style.display = 'block';
+      document.getElementById('seat-select-btn').classList.remove('has-seat');
+    }
+
+    function openSeatModal() {
+      const salaId = document.getElementById('gen-sala').value;
+      if (!salaId) { showToast('Primero selecciona una sala', 'warn'); return; }
+      renderSeatModal(salaId);
+      document.getElementById('seat-modal').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSeatModal() {
+      document.getElementById('seat-modal').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    function closeSeatModalOnOverlay(e) {
+      if (e.target === document.getElementById('seat-modal')) closeSeatModal();
+    }
+
+    let pendingSeats = [];  // [{fila, col}]
+
+    function renderSeatModal(salaId) {
+      pendingSeats = [];
+      document.getElementById('btn-confirm-seat').disabled = true;
+      document.getElementById('confirm-seat-count').textContent = '';
+
+      const data = getSeatMapData(salaId);
+      if (!data) return;
+      const { sala, map } = data;
+      const filas = sala.filas || 8;
+      const cols = sala.columnas || 10;
+
+      document.getElementById('seat-modal-sub').textContent =
+        `${sala.nombre} · ${filas} filas × ${cols} asientos · Tipo: ${selectedTipo === 'padre' ? '👨 Padre' : '👧 Hijo/a'}`;
+
+      const mapEl = document.getElementById('seat-modal-map');
+      mapEl.innerHTML = '';
+
+      // Column header row
+      const headerRow = document.createElement('div');
+      headerRow.className = 'seat-row';
+      headerRow.innerHTML = '<span class="row-label"></span>';
+      for (let c = 0; c < cols; c++) {
+        const num = document.createElement('span');
+        num.style.cssText = 'width:28px;text-align:center;font-size:0.6rem;color:var(--text-dim);font-family:monospace;flex-shrink:0;';
+        num.textContent = c + 1;
+        // Aisle every 5 seats
+        if (c > 0 && c % 5 === 0) {
+          const aisle = document.createElement('span');
+          aisle.className = 'seat-aisle';
+          headerRow.appendChild(aisle);
+        }
+        headerRow.appendChild(num);
+      }
+      mapEl.appendChild(headerRow);
+
+      // Seat rows
+      for (let f = 0; f < filas; f++) {
+        const row = document.createElement('div');
+        row.className = 'seat-row';
+
+        const rowLabel = document.createElement('span');
+        rowLabel.className = 'row-label';
+        rowLabel.textContent = filaLabel(f);
+        row.appendChild(rowLabel);
+
+        for (let c = 0; c < cols; c++) {
+          // Aisle gap every 5 seats
+          if (c > 0 && c % 5 === 0) {
+            const aisle = document.createElement('span');
+            aisle.className = 'seat-aisle';
+            row.appendChild(aisle);
+          }
+
+          const key = `${f}-${c}`;
+          const boleto = map[key];
+          const seat = document.createElement('div');
+          seat.className = 'seat';
+          seat.id = `seat-${f}-${c}`;
+          seat.title = `${filaLabel(f)}${c + 1}`;
+
+          // Tooltip
+          const tip = document.createElement('span');
+          tip.className = 'seat-tooltip';
+          tip.textContent = `${filaLabel(f)}${c + 1}`;
+          seat.appendChild(tip);
+
+          if (boleto) {
+            if (boleto.escaneado) {
+              seat.classList.add('occupied');
+              seat.title += ' · Ingresó';
+            } else if (boleto.tipo === 'padre') {
+              seat.classList.add('sold-padre');
+              seat.title += ' · Padre (vendido)';
+            } else {
+              seat.classList.add('sold-hijo');
+              seat.title += ' · Hijo (vendido)';
+            }
+          } else {
+            seat.addEventListener('click', () => selectSeatInModal(f, c, seat));
+          }
+
+          row.appendChild(seat);
+        }
+        mapEl.appendChild(row);
+      }
+    }
+
+    function selectSeatInModal(fila, col, el) {
+      const key = `${fila}-${col}`;
+      const idx = pendingSeats.findIndex(s => s.fila === fila && s.col === col);
+      if (idx === -1) {
+        // Add to selection
+        pendingSeats.push({ fila, col });
+        el.classList.add('selected');
+      } else {
+        // Remove from selection (toggle off)
+        pendingSeats.splice(idx, 1);
+        el.classList.remove('selected');
+      }
+      const n = pendingSeats.length;
+      document.getElementById('btn-confirm-seat').disabled = n === 0;
+      document.getElementById('confirm-seat-count').textContent =
+        n === 0 ? '' : n === 1 ? '1 Asiento' : `${n} Asientos`;
+    }
+
+    function confirmSeat() {
+      if (!pendingSeats.length) return;
+      selectedAsientos = [...pendingSeats];
+      const n = selectedAsientos.length;
+      const label = n === 1
+        ? `Fila ${filaLabel(selectedAsientos[0].fila)} · Asiento ${selectedAsientos[0].col + 1}`
+        : `${n} asientos seleccionados`;
+      document.getElementById('seat-selected-text').textContent = label;
+      document.getElementById('seat-selected-badge').style.display = 'inline-flex';
+      document.getElementById('seat-select-btn').style.display = 'none';
+      closeSeatModal();
+      showToast(`✅ ${label}`, 'success');
+    }
+
+    // ── TICKET GENERATION ─────────────────────────
+    async function generarBoleto() {
+      const sala = document.getElementById('gen-sala').value;
+      const pelicula = document.getElementById('gen-pelicula').value;
+      if (!sala) { showToast('Selecciona una sala', 'warn'); return; }
+      if (!pelicula) { showToast('❌ Selecciona una película. Si no hay, ve a Config y agrega una a esta sala.', 'error'); return; }
+
+      // If no seats chosen, generate 1 ticket without assigned seat
+      if (selectedAsientos.length === 0) {
+        const id = await crearBoleto(selectedTipo, sala, pelicula, null);
+        if (!id) { showToast('Error al crear boleto', 'error'); return; }
+        lastBoletoId = id;
+        showTicketPreview(id);
+        renderTicketList();
+        updateSeatCountsInfo();
+        showToast(`Boleto ${selectedTipo === 'padre' ? '👨 padre' : '👧 hijo'} generado`, 'success');
+        return;
+      }
+
+      // Validate all selected seats are still available
+      const sold = getSoldSeats(sala);
+      const takenSeats = selectedAsientos.filter(a => sold.has(`${a.fila}-${a.col}`));
+      if (takenSeats.length > 0) {
+        const labels = takenSeats.map(a => `${filaLabel(a.fila)}${a.col + 1}`).join(', ');
+        showToast(`⚠️ Asiento(s) ya vendido(s): ${labels}. Vuelve a seleccionar.`, 'error', 5000);
+        clearSeat();
+        return;
+      }
+
+      // Create one ticket per selected seat
+      const tipoLabel = selectedTipo === 'padre' ? '👨 padre' : '👧 hijo';
+      showToast(`⏳ Generando ${selectedAsientos.length} boleto(s)...`, 'info', 2000);
+
+      let lastId = null;
+      let creados = 0;
+      for (const asiento of selectedAsientos) {
+        const id = await crearBoleto(selectedTipo, sala, pelicula, asiento);
+        if (id) { lastId = id; creados++; }
+      }
+
+      if (lastId) {
+        lastBoletoId = lastId;
+        showTicketPreview(lastId);
+      }
+      renderTicketList();
+      updateSeatCountsInfo();
+      clearSeat();
+      showToast(`✅ ${creados} boleto(s) ${tipoLabel} generado(s)`, 'success', 4000);
+    }
+
+    async function generarLote() {
+      const nPadres = parseInt(document.getElementById('bulk-padres').value) || 0;
+      const nHijos = parseInt(document.getElementById('bulk-hijos').value) || 0;
+      const sala = document.getElementById('bulk-sala').value;
+      const pelicula = document.getElementById('bulk-pelicula').value;
+      if (!sala) { showToast('Selecciona una sala para el lote', 'warn'); return; }
+      if (nPadres + nHijos === 0) { showToast('Ingresa al menos 1 boleto', 'warn'); return; }
+
+      showToast('Generando boletos...', 'info', 2000);
+
+      // Use batch API: one request per type
+      let created = 0;
+      let lastId = null;
+
+      if (nPadres > 0) {
+        const bs = await crearBoletos('padre', sala, pelicula, nPadres);
+        created += bs.length;
+        if (bs.length) lastId = bs[bs.length - 1].id;
+      }
+      if (nHijos > 0) {
+        const bs = await crearBoletos('hijo', sala, pelicula, nHijos);
+        created += bs.length;
+        if (bs.length) lastId = bs[bs.length - 1].id;
+      }
+
+      if (lastId) { lastBoletoId = lastId; showTicketPreview(lastId); }
+      renderTicketList();
+      updateSeatCountsInfo();
+      showToast(`✅ ${created} boletos generados con asiento`, 'success', 4000);
+    }
+
+    // ── TICKET PREVIEW ────────────────────────────
+    function showTicketPreview(boletoId) {
+      const s = getState();
+      const b = s.boletos[boletoId];
+      if (!b) return;
+      const sala = s.config.salas.find(sl => sl.id === b.sala);
+      const pel = s.config.peliculas.find(p => p.id === b.pelicula);
+      const precio = b.tipo === 'padre' ? s.config.precioPadre : s.config.precioHijo;
+
+      document.getElementById('pt-tipo-badge').className = `pt-type-badge ${b.tipo}`;
+      document.getElementById('pt-tipo-badge').textContent = b.tipo === 'padre' ? '👨 Padre' : '👧 Hijo/a';
+      document.getElementById('pt-movie').textContent = pel ? pel.titulo : '—';
+      document.getElementById('pt-sala').textContent = `${sala ? sala.nombre : '—'} · ${pel ? pel.hora : ''}`;
+
+      const seatEl = document.getElementById('pt-seat');
+      if (b.asiento) {
+        seatEl.textContent = `🪑 Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}`;
+        seatEl.style.display = 'block';
+      } else {
+        seatEl.style.display = 'none';
+      }
+
+      document.getElementById('pt-price').textContent = fmt(precio);
+      document.getElementById('pt-id').textContent = `ID: ${boletoId}`;
+
+      const container = document.getElementById('pt-qr-container');
+
+      // Mostrar advertencia si no está pagado
+      let warningEl = document.getElementById('pt-pago-warning');
+      if (!warningEl) {
+        warningEl = document.createElement('div');
+        warningEl.id = 'pt-pago-warning';
+        warningEl.style.cssText = 'color: #e53935; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.5rem; text-align: center;';
+        container.parentNode.insertBefore(warningEl, container);
+      }
+      warningEl.style.display = b.pagado ? 'none' : 'block';
+      warningEl.textContent = '⚠️ PAGO PENDIENTE';
+      container.innerHTML = '<div id="qr-render"></div>';
+      try {
+        if (qrInstance) { qrInstance.clear(); qrInstance = null; }
+        qrInstance = new QRCode(document.getElementById('qr-render'), {
+          text: buildQRPayload(boletoId),
+          width: 150, height: 150,
+          colorDark: '#111', colorLight: '#fff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch {}
+      // Enable action buttons for this ticket
+      document.getElementById('btn-whatsapp').disabled = false;
+      document.getElementById('btn-whatsapp').onclick = () => compartirWhatsAppId(boletoId);
+      document.getElementById('btn-pdf').disabled = false;
+      document.getElementById('btn-pdf').onclick = () => descargarPDF(boletoId);
+    }
+
+    // ── PDF EXPORT ────────────────────────────────
+    async function descargarPDF(boletoId) {
+      const id = boletoId || lastBoletoId;
+      if (!id) { showToast('Primero genera un boleto', 'warn'); return; }
+
+      const btn = document.getElementById('btn-pdf');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Generando...';
+      btn.disabled = true;
+
+      try {
+        // Wait a tick so QR canvas is fully painted
+        await new Promise(r => setTimeout(r, 150));
+
+        const ticketEl = document.querySelector('.print-ticket');
+        const canvas = await html2canvas(ticketEl, {
+          scale: 3,           // high resolution
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+
+        // A5 portrait (148 × 210 mm) — good ticket size
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+
+        // Scale image to fit page with 8mm padding
+        const pad = 8;
+        const maxW = pageW - pad * 2;
+        const maxH = pageH - pad * 2;
+        const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+        const imgW = canvas.width * ratio;
+        const imgH = canvas.height * ratio;
+        const x = (pageW - imgW) / 2;
+        const y = (pageH - imgH) / 2;
+
+        pdf.addImage(imgData, 'PNG', x, y, imgW, imgH);
+
+        // File name based on ticket ID
+        const s = getState();
+        const b = s.boletos[id];
+        const tipo = b ? b.tipo : 'boleto';
+        pdf.save(`boleto-${tipo}-${id.slice(-6)}.pdf`);
+
+        showToast('✅ PDF descargado correctamente', 'success');
+      } catch (e) {
+        console.error(e);
+        showToast('Error al generar el PDF', 'error');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // ── WHATSAPP SHARE ────────────────────────────
+    function buildWhatsAppText(boletoId) {
+      const s = getState();
+      const b = s.boletos[boletoId];
+      if (!b) return null;
+      const sala = s.config.salas.find(sl => sl.id === b.sala);
+      const pel = s.config.peliculas.find(p => p.id === b.pelicula);
+      const precio = b.tipo === 'padre' ? s.config.precioPadre : s.config.precioHijo;
+      const tipoLabel = b.tipo === 'padre' ? '👨 Padre' : '👧 Hijo/a';
+      const seatStr = b.asiento ? `🪑 Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento asignado';
+      const precioStr = new Intl.NumberFormat('es-CO', { style: 'currency', currency: s.config.moneda || 'COP', maximumFractionDigits: 0 }).format(precio);
+
+      return [
+        `🎬 *AL CINE CON PAPÁ*`,
+        `_Colegio El Educador_`,
+        ``,
+        `*Tipo:* ${tipoLabel}`,
+        `*Película:* ${pel ? pel.titulo : '—'}`,
+        `*Sala:* ${sala ? sala.nombre : '—'}`,
+        `*Hora:* ${pel ? pel.hora : '—'}`,
+        `*Asiento:* ${seatStr}`,
+        `*Precio:* ${precioStr}`,
+        ``,
+        `🎫 *ID del boleto:*`,
+        `\`${boletoId}\``,
+        ``,
+        `✅ Presenta este mensaje el día del evento para ingresar.`,
+      ].join('\n');
+    }
+
+    function compartirWhatsApp() {
+      if (!lastBoletoId) return;
+      compartirWhatsAppId(lastBoletoId);
+    }
+
+    function compartirWhatsAppId(boletoId) {
+      const texto = buildWhatsAppText(boletoId);
+      if (!texto) { showToast('No se pudo generar el mensaje', 'error'); return; }
+      const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+      window.open(url, '_blank');
+      showTicketPreview(boletoId);
+    }
+
+    // ── TICKET LIST ───────────────────────────────
+    function renderTicketList() {
+      const s = getState();
+      const boletos = Object.values(s.boletos);
+      const filterTipo = document.getElementById('filter-tipo').value;
+      const filterSala = document.getElementById('filter-sala').value;
+      const filtered = boletos.filter(b =>
+        (!filterTipo || b.tipo === filterTipo) &&
+        (!filterSala || b.sala === filterSala)
+      ).reverse();
+
+      document.getElementById('total-badge').textContent = `${boletos.length}`;
+
+      const el = document.getElementById('tickets-list');
+      if (!filtered.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1.5rem;">No hay boletos que coincidan</p>';
+        return;
+      }
+
+      el.innerHTML = filtered.slice(0, 100).map(b => {
+        const sala = s.config.salas.find(sl => sl.id === b.sala);
+        const pel = s.config.peliculas.find(p => p.id === b.pelicula);
+        const icon = b.tipo === 'padre' ? '👨' : '👧';
+        const tipoLabel = b.tipo === 'padre' ? 'Padre' : 'Hijo/a';
+        const badgeClass = b.tipo === 'padre' ? 'badge-gold' : 'badge-blue';
+        let estado;
+        if (b.escaneado) {
+          estado = '<span class="badge badge-green">✅ Ingresó</span>';
+        } else if (!b.pagado) {
+          estado = '<span class="badge" style="background:#ff9800;color:#fff;border-color:#ff9800;">⚠️ Falta Pago</span>';
+        } else {
+          estado = '<span class="badge badge-gray">⏳ Pendiente de ingreso</span>';
+        }
+        const seatStr = b.asiento ? `🪑 Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento asignado';
+        return `
+          <div class="ticket-card" onclick="showTicketPreview('${b.id}')">
+            <span class="tc-icon">${icon}</span>
+            <div class="tc-info">
+              <div class="tc-id">${b.id}</div>
+              <div class="tc-title">${tipoLabel} · ${sala ? sala.nombre : b.sala}</div>
+              <div class="tc-sub">${pel ? pel.titulo : '—'}</div>
+              <div class="tc-seat">${seatStr}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end;">
+              <span class="badge ${badgeClass}">${tipoLabel}</span>
+              ${estado}
+              <div style="display:flex;gap:0.3rem;">
+                <button onclick="event.stopPropagation(); showTicketPreview('${b.id}'); setTimeout(()=>descargarPDF('${b.id}'),200);" title="Descargar PDF"
+                  style="background:#e53935;color:#fff;border:none;border-radius:8px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;font-weight:700;">📄 PDF</button>
+                <button onclick="event.stopPropagation(); compartirWhatsAppId('${b.id}')" title="Compartir por WhatsApp"
+                  style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;font-weight:700;">📲 WA</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') + (filtered.length > 100 ? `<p style="text-align:center;color:var(--text-muted);font-size:.8rem;padding:.75rem;">... y ${filtered.length - 100} más</p>` : '');
+    }
+  </script>
+
+  <style>
+    @media print {
+      nav, .gen-layout > div:first-child, #tickets-list, .card-title, .btn,
+      .page-header, #total-badge, .tickets-list-header, .tickets-scroll,
+      [style*="display:flex; gap"] { display: none !important; }
+      body { background: white !important; }
+      .print-ticket { box-shadow: none !important; }
+      #preview-card { border: none !important; padding: 0 !important; }
+      .page { padding-top: 0 !important; }
+    }
+  </style>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración — Al Cine con Papá</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="seats.css">
+  <style>
+    .price-row { display: flex; gap: 1rem; align-items: flex-start; }
+    .price-row .form-group { flex: 1; }
+    .price-preview {
+      background: rgba(245,197,24,0.07);
+      border: 1px solid rgba(245,197,24,0.2);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+    .price-preview .pp-label { font-size: 0.8rem; color: var(--text-muted); }
+    .price-preview .pp-val { font-size: 1.3rem; font-weight: 700; color: var(--gold); }
+
+    .pelicula-item, .sala-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+    }
+    .pelicula-item:hover, .sala-item:hover { border-color: var(--border-hover); }
+
+    .sala-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .item-info { flex: 1; min-width: 0; }
+    .item-info .item-title { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-info .item-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-icon:hover { border-color: var(--error); color: var(--error); background: rgba(255,23,68,0.08); }
+
+    .add-form {
+      background: var(--bg-card2);
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .inline-row { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+    .inline-row .form-group { flex: 1; min-width: 140px; margin: 0; }
+
+    /* login */
+    #login-section { display: block; }
+    #admin-section { display: none; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🎬</span>
+      <div>
+        <div class="logo-text">Al Cine con Papá</div>
+        <div class="logo-sub">Colegio El Educador</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html"><span class="nav-icon">🏠</span><span>Inicio</span></a></li>
+      <li><a href="scanner.html"><span class="nav-icon">📱</span><span>Escáner</span></a></li>
+      <li><a href="generator.html"><span class="nav-icon">🎫</span><span>Boletos</span></a></li>
+      <li><a href="reporte.html"><span class="nav-icon">📊</span><span>Reporte</span></a></li>
+      <li><a href="admin.html" class="active"><span class="nav-icon">⚙️</span><span>Config</span></a></li>
+    </ul>
+  </nav>
+
+  <main class="page">
+    <!-- ── LOGIN ── -->
+    <section id="login-section" class="login-wrap">
+      <div class="login-card">
+        <span class="brand-logo">⚙️</span>
+        <h1>Configuración</h1>
+        <p class="subtitle">Ingresa la contraseña para acceder al panel de administración</p>
+        <div class="form-group">
+          <input type="password" id="login-pass" placeholder="Contraseña..." autofocus>
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()">Ingresar</button>
+        <p style="margin-top:1rem; font-size:0.75rem; color:var(--text-dim);">Contraseña por defecto: educador2024</p>
+      </div>
+    </section>
+
+    <!-- ── ADMIN PANEL ── -->
+    <section id="admin-section">
+      <div class="container">
+        <div class="page-header">
+          <div class="eyebrow">⚙️ Panel de Administración</div>
+          <h1>Configuración</h1>
+          <p>Edita precios, películas, salas y contraseña del sistema</p>
+        </div>
+
+        <div class="grid-2">
+
+          <!-- ── PRECIOS ── -->
+          <div class="card">
+            <div class="card-title">💰 Precios de Boletos</div>
+            <div class="price-row">
+              <div class="form-group">
+                <label>Precio Padre</label>
+                <input type="number" id="precio-padre" min="0" step="500" placeholder="15000">
+              </div>
+              <div class="form-group">
+                <label>Precio Hijo</label>
+                <input type="number" id="precio-hijo" min="0" step="500" placeholder="8000">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Moneda</label>
+              <select id="moneda">
+                <option value="COP">COP — Peso Colombiano</option>
+                <option value="USD">USD — Dólar</option>
+                <option value="PEN">PEN — Sol Peruano</option>
+                <option value="MXN">MXN — Peso Mexicano</option>
+                <option value="BOB">BOB — Boliviano</option>
+                <option value="VES">VES — Bolívar</option>
+              </select>
+            </div>
+            <div class="price-preview">
+              <div><div class="pp-label">👨 Padre</div><div class="pp-val" id="prev-padre">$0</div></div>
+              <div><div class="pp-label">👧 Hijo/a</div><div class="pp-val" id="prev-hijo">$0</div></div>
+            </div>
+            <br>
+            <button class="btn btn-primary btn-block" onclick="guardarPrecios()">💾 Guardar Precios</button>
+          </div>
+
+          <!-- ── PAGOS PENDIENTES ── -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">💳 Validación de Pagos</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+              Boletos generados que aún no han sido pagados. (No podrán entrar a la sala hasta que los apruebes).
+            </p>
+            <div id="pagos-list"></div>
+          </div>
+
+          <!-- ── SALAS ── -->
+          <div class="card">
+            <div class="card-title">🎭 Salas de Cine</div>
+            <div id="salas-list"></div>
+            <hr class="sep">
+            <div class="add-form">
+              <label>Nombre de nueva sala</label>
+              <div class="inline-row">
+                <div class="form-group">
+                  <input type="text" id="new-sala-nombre" placeholder="Ej: Sala 4">
+                </div>
+                <div class="form-group" style="max-width:80px;">
+                  <label>Color</label>
+                  <input type="color" id="new-sala-color" value="#c084fc" style="height:42px; padding:4px; cursor:pointer;">
+                </div>
+                <div class="form-group" style="max-width:72px;">
+                  <label>Filas</label>
+                  <input type="number" id="new-sala-filas" value="8" min="1" max="30">
+                </div>
+                <div class="form-group" style="max-width:82px;">
+                  <label>Asientos/fila</label>
+                  <input type="number" id="new-sala-cols" value="10" min="1" max="40">
+                </div>
+                <button class="btn btn-ghost" onclick="agregarSala()" style="padding:0.7rem 1rem; flex-shrink:0; align-self:flex-end;">➕ Agregar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── PELÍCULAS ── -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">🎬 Cartelera del Día</div>
+            <div id="peliculas-list"></div>
+            <hr class="sep">
+            <div class="add-form">
+              <div class="inline-row">
+                <div class="form-group">
+                  <label>Título de la Película</label>
+                  <input type="text" id="new-pel-titulo" placeholder="Ej: El León Rey">
+                </div>
+                <div class="form-group">
+                  <label>Sala</label>
+                  <select id="new-pel-sala"></select>
+                </div>
+                <div class="form-group" style="max-width:130px;">
+                  <label>Hora</label>
+                  <input type="text" id="new-pel-hora" placeholder="10:00">
+                </div>
+                <button class="btn btn-ghost" onclick="agregarPelicula()" style="padding:0.7rem 1rem; flex-shrink:0; align-self:flex-end;">➕ Agregar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── CONTRASEÑA ── -->
+          <div class="card">
+            <div class="card-title">🔐 Cambiar Contraseña</div>
+            <div class="form-group">
+              <label>Nueva Contraseña</label>
+              <input type="password" id="new-pass1" placeholder="Nueva contraseña">
+            </div>
+            <div class="form-group">
+              <label>Confirmar Contraseña</label>
+              <input type="password" id="new-pass2" placeholder="Repite la contraseña">
+            </div>
+            <button class="btn btn-primary btn-block" onclick="cambiarContrasena()">🔐 Cambiar Contraseña</button>
+          </div>
+
+          <!-- ── DANGER ZONE ── -->
+          <div class="card" style="border-color: rgba(229,9,20,0.25);">
+            <div class="card-title" style="color: var(--error);">⚠️ Zona de Peligro</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
+              Estas acciones son irreversibles. Úsalas con precaución.
+            </p>
+            <button class="btn btn-danger btn-block" onclick="resetData()">🗑️ Borrar Todos los Boletos y Escaneos</button>
+            <br>
+            <button class="btn btn-ghost btn-block" onclick="logout(); location.href='admin.html'">🚪 Cerrar Sesión</button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    // ── AUTH ────────────────────────────────────
+    async function doLogin() {
+      const pass = document.getElementById('login-pass').value;
+      const ok = await login(pass);
+      if (ok) {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('admin-section').style.display = 'block';
+        renderAdmin();
+      } else {
+        showToast('Contraseña incorrecta', 'error');
+        document.getElementById('login-pass').value = '';
+        document.getElementById('login-pass').focus();
+      }
+    }
+
+    document.getElementById('login-pass')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    // ── CHECK SESSION ────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      if (isLoggedIn()) {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('admin-section').style.display = 'block';
+      }
+    });
+
+    function onStateLoaded() {
+      if (isLoggedIn()) renderAdmin();
+    }
+
+    function onRemoteUpdate() {
+      if (isLoggedIn()) renderAdmin();
+    }
+
+    // ── RENDER ───────────────────────────────────
+    function renderAdmin() {
+      const s = getState();
+      if (!s.config) return;
+      // Precios
+      document.getElementById('precio-padre').value = s.config.precioPadre;
+      document.getElementById('precio-hijo').value = s.config.precioHijo;
+      document.getElementById('moneda').value = s.config.moneda;
+      updatePricePreviews();
+
+      // Salas
+      renderSalas();
+      // Peliculas
+      renderPeliculas();
+      // Pagos
+      renderPagos();
+    }
+
+    function renderPagos() {
+      const s = getState();
+      const el = document.getElementById('pagos-list');
+      const pendientes = Object.values(s.boletos).filter(b => b.pagado === false).reverse();
+
+      if (!pendientes.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1rem;">No hay boletos pendientes de pago.</p>';
+        return;
+      }
+
+      el.innerHTML = pendientes.map(b => {
+        const sala = s.config.salas.find(sl => sl.id === b.sala);
+        const pel = s.config.peliculas.find(p => p.id === b.pelicula);
+        const seatStr = b.asiento ? `Fila ${String.fromCharCode(65 + b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento';
+        const tipoLabel = b.tipo === 'padre' ? '👨 Padre' : '👧 Hijo/a';
+        return `
+          <div class="sala-item" style="justify-content: space-between;">
+            <div class="item-info">
+              <div class="item-title">${tipoLabel} · ${b.id}</div>
+              <div class="item-sub">${pel ? pel.titulo : ''} · ${sala ? sala.nombre : ''} · ${seatStr}</div>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button class="btn" onclick="liberarAsientoUi('${b.id}')" style="padding: 0.4rem 1rem; font-size: 0.8rem; background: transparent; border: 1px solid var(--error); color: var(--error);">Liberar Asiento ❌</button>
+              <button class="btn btn-primary" onclick="aprobarPagoUi('${b.id}')" style="padding: 0.4rem 1rem; font-size: 0.8rem;">Aprobar Pago ✅</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function aprobarPagoUi(id) {
+      const ok = await validarPago(id);
+      if (ok) {
+        showToast('Pago aprobado correctamente', 'success');
+        renderAdmin();
+      } else {
+        showToast('Error al aprobar el pago', 'error');
+      }
+    }
+
+    async function liberarAsientoUi(id) {
+      const ok = await liberarBoleto(id);
+      if (ok) {
+        showToast('Asiento liberado correctamente', 'warn');
+        renderAdmin();
+      }
+    }
+
+    function updatePricePreviews() {
+      const pp = parseFloat(document.getElementById('precio-padre').value) || 0;
+      const ph = parseFloat(document.getElementById('precio-hijo').value) || 0;
+      const mon = document.getElementById('moneda').value || 'COP';
+      const fmtLocal = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: mon, maximumFractionDigits: 0 }).format(n);
+      document.getElementById('prev-padre').textContent = fmtLocal(pp);
+      document.getElementById('prev-hijo').textContent = fmtLocal(ph);
+    }
+
+    document.getElementById('precio-padre')?.addEventListener('input', updatePricePreviews);
+    document.getElementById('precio-hijo')?.addEventListener('input', updatePricePreviews);
+    document.getElementById('moneda')?.addEventListener('change', updatePricePreviews);
+
+    function renderSalas() {
+      const s = getState();
+      const el = document.getElementById('salas-list');
+      if (!s.config.salas.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;">Sin salas configuradas.</p>';
+        return;
+      }
+      el.innerHTML = s.config.salas.map(sala => {
+        const filas = sala.filas || 8;
+        const cols = sala.columnas || 10;
+        const totalAsientos = filas * cols;
+        const sold = Object.values(s.boletos || {}).filter(b => b.sala === sala.id && b.asiento).length;
+        return `
+          <div class="sala-config-row">
+            <span class="sala-dot" style="background:${sala.color}"></span>
+            <span class="sc-name">${sala.nombre}</span>
+            <span class="sc-label">Filas:</span>
+            <input type="number" value="${filas}" min="1" max="30" style="width:60px;"
+              onchange="actualizarCapacidad('${sala.id}', 'filas', this.value)">
+            <span class="sc-label">Asientos/fila:</span>
+            <input type="number" value="${cols}" min="1" max="40" style="width:60px;"
+              onchange="actualizarCapacidad('${sala.id}', 'columnas', this.value)">
+            <span class="sc-total">👜 ${sold}/${totalAsientos}</span>
+            <button class="btn-icon" onclick="eliminarSala('${sala.id}')" title="Eliminar">🗑️</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPeliculas() {
+      const s = getState();
+      const el = document.getElementById('peliculas-list');
+      // populate sala selector
+      const selSala = document.getElementById('new-pel-sala');
+      selSala.innerHTML = s.config.salas.map(sl => `<option value="${sl.id}">${sl.nombre}</option>`).join('');
+
+      if (!s.config.peliculas.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;">Sin películas en cartelera.</p>';
+        return;
+      }
+      el.innerHTML = s.config.peliculas.map(p => {
+        const sala = s.config.salas.find(sl => sl.id === p.sala);
+        return `
+          <div class="pelicula-item">
+            <span style="font-size:1.5rem;">🎬</span>
+            <div class="item-info">
+              <div class="item-title">${p.titulo}</div>
+              <div class="item-sub">${sala ? sala.nombre : p.sala} · ${p.hora}</div>
+            </div>
+            <button class="btn-icon" onclick="eliminarPelicula('${p.id}')" title="Eliminar">🗑️</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── ACTIONS ──────────────────────────────────
+    async function guardarPrecios() {
+      const pp = parseFloat(document.getElementById('precio-padre').value);
+      const ph = parseFloat(document.getElementById('precio-hijo').value);
+      const mon = document.getElementById('moneda').value;
+      if (isNaN(pp) || isNaN(ph) || pp < 0 || ph < 0) {
+        showToast('Ingresa precios válidos', 'error'); return;
+      }
+      const ok = await saveConfig({ precioPadre: pp, precioHijo: ph, moneda: mon });
+      if (ok) showToast('✅ Precios guardados', 'success');
+      else showToast('Error al guardar', 'error');
+    }
+
+    async function agregarSala() {
+      const nombre = document.getElementById('new-sala-nombre').value.trim();
+      const color = document.getElementById('new-sala-color').value;
+      const filas = parseInt(document.getElementById('new-sala-filas').value) || 8;
+      const columnas = parseInt(document.getElementById('new-sala-cols').value) || 10;
+      if (!nombre) { showToast('Ingresa un nombre para la sala', 'warn'); return; }
+      const id = 'sala' + Date.now();
+      
+      const s = getState();
+      const newSalas = [...s.config.salas, { id, nombre, color, filas, columnas }];
+      const ok = await saveConfig({ salas: newSalas });
+      
+      if (ok) {
+        document.getElementById('new-sala-nombre').value = '';
+        showToast(`Sala "${nombre}" agregada`, 'success');
+        renderSalas(); renderPeliculas();
+      }
+    }
+
+    async function actualizarCapacidad(salaId, campo, valor) {
+      const n = parseInt(valor);
+      if (isNaN(n) || n < 1) return;
+      
+      const s = getState();
+      const newSalas = JSON.parse(JSON.stringify(s.config.salas));
+      const sala = newSalas.find(sl => sl.id === salaId);
+      if (sala) sala[campo] = n;
+      
+      const ok = await saveConfig({ salas: newSalas });
+      if (ok) {
+        showToast('Capacidad actualizada ✅', 'success');
+        renderSalas();
+      }
+    }
+
+    async function eliminarSala(salaId) {
+      if (!confirm('¿Eliminar esta sala? Los boletos no se perderán pero quedarán sin sala asignada.')) return;
+      const s = getState();
+      const newSalas = s.config.salas.filter(sl => sl.id !== salaId);
+      const ok = await saveConfig({ salas: newSalas });
+      if (ok) {
+        showToast('Sala eliminada', 'warn');
+        renderSalas(); renderPeliculas();
+      }
+    }
+
+    async function agregarPelicula() {
+      const titulo = document.getElementById('new-pel-titulo').value.trim();
+      const sala = document.getElementById('new-pel-sala').value;
+      const hora = document.getElementById('new-pel-hora').value.trim();
+      if (!titulo) { showToast('Ingresa el título de la película', 'warn'); return; }
+      if (!sala) { showToast('Selecciona una sala', 'warn'); return; }
+      
+      const id = 'p' + Date.now();
+      const s = getState();
+      const newPels = [...s.config.peliculas, { id, titulo, sala, hora }];
+      const ok = await saveConfig({ peliculas: newPels });
+      
+      if (ok) {
+        document.getElementById('new-pel-titulo').value = '';
+        document.getElementById('new-pel-hora').value = '';
+        showToast(`"${titulo}" agregada a cartelera`, 'success');
+        renderPeliculas();
+      }
+    }
+
+    async function eliminarPelicula(pelId) {
+      const s = getState();
+      const newPels = s.config.peliculas.filter(p => p.id !== pelId);
+      const ok = await saveConfig({ peliculas: newPels });
+      if (ok) {
+        showToast('Película eliminada', 'warn');
+        renderPeliculas();
+      }
+    }
+
+    async function cambiarContrasena() {
+      const p1 = document.getElementById('new-pass1').value;
+      const p2 = document.getElementById('new-pass2').value;
+      if (!p1) { showToast('Ingresa la nueva contraseña', 'warn'); return; }
+      if (p1 !== p2) { showToast('Las contraseñas no coinciden', 'error'); return; }
+      if (p1.length < 4) { showToast('La contraseña debe tener al menos 4 caracteres', 'warn'); return; }
+      
+      const ok = await saveConfig({}, p1);
+      if (ok) {
+        document.getElementById('new-pass1').value = '';
+        document.getElementById('new-pass2').value = '';
+        showToast('Contraseña actualizada ✅', 'success');
+      } else {
+        showToast('Error al cambiar contraseña', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

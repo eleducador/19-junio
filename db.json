@@ -1,0 +1,237 @@
+{
+  "password": "educador",
+  "config": {
+    "precioPadre": 10,
+    "precioHijo": 5,
+    "moneda": "PEN",
+    "salas": [
+      {
+        "id": "sala1",
+        "nombre": "Sala 1",
+        "color": "#f5c518",
+        "filas": 10,
+        "columnas": 5
+      },
+      {
+        "id": "sala3",
+        "nombre": "Sala 3",
+        "color": "#82aaff",
+        "filas": 8,
+        "columnas": 10
+      },
+      {
+        "id": "sala1780876593572",
+        "nombre": "Sala 4",
+        "color": "#c084fc",
+        "filas": 8,
+        "columnas": 5
+      }
+    ],
+    "peliculas": [
+      {
+        "id": "p1",
+        "titulo": "El León Rey",
+        "sala": "sala1",
+        "hora": "10:00"
+      },
+      {
+        "id": "p2",
+        "titulo": "Rápidos y Furiosos X",
+        "sala": "sala2",
+        "hora": "10:30"
+      },
+      {
+        "id": "p3",
+        "titulo": "Spider-Man: Sin Camino a Casa",
+        "sala": "sala3",
+        "hora": "11:00"
+      },
+      {
+        "id": "p1780893375942",
+        "titulo": "Bug fish",
+        "sala": "sala1",
+        "hora": "6:30"
+      }
+    ]
+  },
+  "boletos": {
+    "BMQ5DBRMDMFQ": {
+      "id": "BMQ5DBRMDMFQ",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 0,
+        "col": 2
+      },
+      "vendido": true,
+      "escaneado": true,
+      "creadoAt": "2026-06-08T15:31:05.749Z",
+      "escaneadoAt": "2026-06-08T15:31:29.450Z",
+      "escaneadoEn": "sala1"
+    },
+    "BMQ5FAY4MC8O": {
+      "id": "BMQ5FAY4MC8O",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 1,
+        "col": 2
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T16:26:26.759Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5G0QZVVO6": {
+      "id": "BMQ5G0QZVVO6",
+      "tipo": "hijo",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 5,
+        "col": 3
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T16:46:30.572Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5G0R54TYS": {
+      "id": "BMQ5G0R54TYS",
+      "tipo": "hijo",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 5,
+        "col": 1
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T16:46:30.760Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5PM7LV88Z": {
+      "id": "BMQ5PM7LV88Z",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 3,
+        "col": 3
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:15:08.419Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5PM7ML5AN": {
+      "id": "BMQ5PM7ML5AN",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 3,
+        "col": 1
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:15:08.445Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5PM7MXVNQ": {
+      "id": "BMQ5PM7MXVNQ",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 2,
+        "col": 4
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:15:08.457Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5PM7NBPSG": {
+      "id": "BMQ5PM7NBPSG",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 4,
+        "col": 2
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:15:08.471Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5PM7NPVBO": {
+      "id": "BMQ5PM7NPVBO",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 2,
+        "col": 1
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:15:08.485Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5QF0ZTMTL": {
+      "id": "BMQ5QF0ZTMTL",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 0,
+        "col": 0
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:37:32.874Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    },
+    "BMQ5QG41YH5H": {
+      "id": "BMQ5QG41YH5H",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 0,
+        "col": 1
+      },
+      "vendido": true,
+      "escaneado": false,
+      "creadoAt": "2026-06-08T21:38:23.494Z",
+      "escaneadoAt": null,
+      "escaneadoEn": null
+    }
+  },
+  "scans": [
+    {
+      "boletoId": "BMQ5DBRMDMFQ",
+      "tipo": "padre",
+      "sala": "sala1",
+      "pelicula": "p1",
+      "asiento": {
+        "fila": 0,
+        "col": 2
+      },
+      "at": "2026-06-08T15:31:29.450Z"
+    }
+  ]
+}

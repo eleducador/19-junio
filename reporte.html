@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte — Al Cine con Papá</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 768px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 400px) { .summary-grid { grid-template-columns: 1fr; } }
+
+    .sala-report {
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .sala-report-header {
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .sala-report-body { padding: 1.25rem; background: var(--bg-card); }
+
+    .sala-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    .sala-stat {
+      text-align: center;
+      padding: 0.75rem;
+      background: var(--bg-card2);
+      border-radius: 10px;
+    }
+    .sala-stat .ss-val { font-size: 1.5rem; font-weight: 700; font-family: 'Playfair Display', serif; }
+    .sala-stat .ss-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.2rem; }
+
+    .progress-bar-wrap {
+      background: var(--bg-card3);
+      border-radius: 100px;
+      height: 8px;
+      margin-top: 0.75rem;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 100px;
+      transition: width 1s ease;
+    }
+
+    .donut-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .donut-legend { display: flex; flex-direction: column; gap: 0.5rem; }
+    .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Mini income card */
+    .income-card {
+      background: linear-gradient(135deg, rgba(245,197,24,0.12) 0%, rgba(245,197,24,0.04) 100%);
+      border: 1px solid rgba(245,197,24,0.25);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .income-card .ic-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.5rem; }
+    .income-card .ic-value { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: #fff; }
+    .income-card .ic-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    .scan-history-wrap { max-height: 400px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="page-loading" id="page-loading">
+    <div class="load-icon">📊</div>
+    <div class="load-text">Conectando al servidor...</div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🎬</span>
+      <div>
+        <div class="logo-text">Al Cine con Papá</div>
+        <div class="logo-sub">Colegio El Educador</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html"><span class="nav-icon">🏠</span><span>Inicio</span></a></li>
+      <li><a href="scanner.html"><span class="nav-icon">📱</span><span>Escáner</span></a></li>
+      <li><a href="generator.html"><span class="nav-icon">🎫</span><span>Boletos</span></a></li>
+      <li><a href="reporte.html" class="active"><span class="nav-icon">📊</span><span>Reporte</span></a></li>
+      <li><a href="admin.html"><span class="nav-icon">⚙️</span><span>Config</span></a></li>
+    </ul>
+    <div class="conn-status-wrap" style="margin-left:1rem;">
+      <span class="conn-dot disconnected" id="conn-indicator" title="Conectando..."></span>
+    </div>
+  </nav>
+
+  <main class="page">
+    <div class="container">
+      <div class="page-header">
+        <div class="eyebrow">📊 Estadísticas del Evento</div>
+        <h1>Reporte de Ingresos</h1>
+        <p>Resumen completo de boletos vendidos, ingresados y recaudación</p>
+      </div>
+
+      <!-- TOP ACTIONS -->
+      <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="renderAll()">🔄 Actualizar</button>
+        <button class="btn btn-success btn-lg" onclick="exportarExcel()">📥 Exportar Excel</button>
+      </div>
+
+      <!-- SUMMARY STATS -->
+      <div class="summary-grid" id="summary-grid">
+        <div class="stat-box gold">
+          <div class="stat-value" id="st-total">0</div>
+          <div class="stat-label">Total Boletos</div>
+        </div>
+        <div class="stat-box green">
+          <div class="stat-value" id="st-ingresados">0</div>
+          <div class="stat-label">Ingresados</div>
+        </div>
+        <div class="stat-box blue">
+          <div class="stat-value" id="st-pendientes">0</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-box red">
+          <div class="stat-value" id="st-pct">0%</div>
+          <div class="stat-label">% Asistencia</div>
+        </div>
+      </div>
+
+      <!-- INCOME -->
+      <div class="grid-3" style="margin-bottom:1.5rem;">
+        <div class="income-card">
+          <div class="ic-label">👨 Padres</div>
+          <div class="ic-value" id="inc-padres">$0</div>
+          <div class="ic-sub" id="inc-padres-count">0 boletos</div>
+        </div>
+        <div class="income-card">
+          <div class="ic-label">👧 Hijos</div>
+          <div class="ic-value" id="inc-hijos">$0</div>
+          <div class="ic-sub" id="inc-hijos-count">0 boletos</div>
+        </div>
+        <div class="income-card" style="background:linear-gradient(135deg,rgba(0,230,118,0.15) 0%,rgba(0,230,118,0.04) 100%); border-color:rgba(0,230,118,0.3);">
+          <div class="ic-label" style="color:var(--success);">💰 Total General</div>
+          <div class="ic-value" id="inc-total">$0</div>
+          <div class="ic-sub" id="inc-total-count">0 boletos totales</div>
+        </div>
+      </div>
+
+      <!-- SALA REPORTS -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">🎭 Reporte por Sala</div>
+        <div id="salas-report"></div>
+      </div>
+
+      <!-- SCAN HISTORY TABLE -->
+      <div class="card">
+        <div class="card-title">🕐 Historial de Escaneos</div>
+        <div class="scan-history-wrap">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tipo</th>
+                  <th>Sala</th>
+                  <th>Película</th>
+                  <th>ID Boleto</th>
+                  <th>Hora de Ingreso</th>
+                </tr>
+              </thead>
+              <tbody id="scan-history-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <p id="scan-empty" style="display:none; text-align:center; color:var(--text-muted); padding:1.5rem; font-size:.85rem;">
+          No hay escaneos registrados aún
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => { setActiveNav(); });
+
+    function onStateLoaded() {
+      document.getElementById('page-loading').style.display = 'none';
+      renderAll();
+    }
+
+    function onRemoteUpdate(event, data) {
+      renderAll();
+    }
+
+    function renderAll() {
+      const st = getStats();
+      const s = getState();
+
+      // Summary
+      document.getElementById('st-total').textContent = st.total;
+      document.getElementById('st-ingresados').textContent = st.escaneados;
+      document.getElementById('st-pendientes').textContent = st.total - st.escaneados;
+      const pct = st.total > 0 ? Math.round((st.escaneados / st.total) * 100) : 0;
+      document.getElementById('st-pct').textContent = pct + '%';
+
+      // Income
+      document.getElementById('inc-padres').textContent = fmt(st.ingresoPadres);
+      document.getElementById('inc-padres-count').textContent = `${st.padres} boletos · ${fmt(s.config.precioPadre)} c/u`;
+      document.getElementById('inc-hijos').textContent = fmt(st.ingresoHijos);
+      document.getElementById('inc-hijos-count').textContent = `${st.hijos} boletos · ${fmt(s.config.precioHijo)} c/u`;
+      document.getElementById('inc-total').textContent = fmt(st.ingresoTotal);
+      document.getElementById('inc-total-count').textContent = `${st.total} boletos totales`;
+
+      // Salas report
+      const salasEl = document.getElementById('salas-report');
+      salasEl.innerHTML = '';
+      s.config.salas.forEach((sala, idx) => {
+        const sst = st.salas[sala.id] || {};
+        const pel = s.config.peliculas.find(p => p.sala === sala.id);
+        const pct2 = sst.total > 0 ? Math.round((sst.escaneados / sst.total) * 100) : 0;
+        const incSala = sst.ingreso || 0;
+
+        const div = document.createElement('div');
+        div.className = 'sala-report';
+        div.innerHTML = `
+          <div class="sala-report-header" style="background:${sala.color}18; border-bottom:1px solid ${sala.color}33;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${sala.color};"></span>
+              <span style="font-weight:700; font-size:1rem;">${sala.nombre}</span>
+              ${pel ? `<span class="badge badge-gray">🎬 ${pel.titulo} · ${pel.hora}</span>` : ''}
+            </div>
+            <span style="font-family:'Playfair Display',serif; font-size:1.2rem; color:${sala.color}; font-weight:700;">${fmt(incSala)}</span>
+          </div>
+          <div class="sala-report-body">
+            <div class="sala-stats-row">
+              <div class="sala-stat">
+                <div class="ss-val" style="color:var(--gold);">${sst.padres || 0}</div>
+                <div class="ss-label">👨 Padres vendidos</div>
+              </div>
+              <div class="sala-stat">
+                <div class="ss-val" style="color:#82aaff;">${sst.hijos || 0}</div>
+                <div class="ss-label">👧 Hijos vendidos</div>
+              </div>
+              <div class="sala-stat">
+                <div class="ss-val" style="color:var(--success);">${sst.escaneados || 0}</div>
+                <div class="ss-label">✅ Ingresaron</div>
+              </div>
+            </div>
+            <div class="progress-bar-wrap" title="${pct2}% ingresados">
+              <div class="progress-bar" style="width:${pct2}%; background:${sala.color};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">
+              <span>${sst.escaneados || 0} ingresaron de ${sst.total || 0}</span>
+              <span>${pct2}% asistencia</span>
+            </div>
+          </div>
+        `;
+        salasEl.appendChild(div);
+      });
+
+      if (!s.config.salas.length) {
+        salasEl.innerHTML = '<p style="color:var(--text-muted); font-size:.85rem; text-align:center; padding:1rem;">Sin salas configuradas. Ve a Configuración → Salas.</p>';
+      }
+
+      // Scan history
+      const scans = [...s.scans].reverse();
+      const tbody = document.getElementById('scan-history-body');
+      const empty = document.getElementById('scan-empty');
+      if (!scans.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      tbody.innerHTML = scans.map((sc, i) => {
+        const sala = s.config.salas.find(sl => sl.id === sc.sala);
+        const pel = s.config.peliculas.find(p => p.id === sc.pelicula);
+        const icon = sc.tipo === 'padre' ? '👨' : '👧';
+        const tipoLabel = sc.tipo === 'padre' ? 'Padre' : 'Hijo/a';
+        const badgeClass = sc.tipo === 'padre' ? 'badge-gold' : 'badge-blue';
+        return `<tr>
+          <td style="color:var(--text-muted);">${scans.length - i}</td>
+          <td><span class="badge ${badgeClass}">${icon} ${tipoLabel}</span></td>
+          <td>${sala ? sala.nombre : sc.sala}</td>
+          <td style="color:var(--text-muted);">${pel ? pel.titulo : '—'}</td>
+          <td style="font-family:monospace; font-size:0.78rem; color:var(--text-muted);">${sc.boletoId}</td>
+          <td>${fmtDate(sc.at)}</td>
+        </tr>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>

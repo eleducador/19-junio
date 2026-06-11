@@ -1,0 +1,327 @@
+
+/* ══════════════════════════════════════════
+   SEAT MAP STYLES — Al Cine con Papá
+   ══════════════════════════════════════════ */
+
+/* ── Cinema Screen ── */
+.cinema-screen {
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 100%);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px 6px 50% 50% / 6px 6px 20px 20px;
+  text-align: center;
+  padding: 0.5rem 2rem;
+  margin: 0 auto 1.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  max-width: 80%;
+  box-shadow: 0 4px 30px rgba(255,255,255,0.06);
+}
+
+/* ── Seat map container ── */
+.seat-map-wrap {
+  overflow-x: auto;
+  padding: 0.5rem 0 1rem;
+}
+
+.seat-map {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: max-content;
+  margin: 0 auto;
+}
+
+.seat-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.row-label {
+  width: 22px;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-family: monospace;
+}
+
+/* ── Individual seat ── */
+.seat {
+  width: 28px;
+  height: 26px;
+  border-radius: 5px 5px 3px 3px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--bg-card3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Seat back (top part) */
+.seat::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 2px;
+  right: 2px;
+  height: 4px;
+  background: inherit;
+  border-radius: 3px 3px 0 0;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-bottom: none;
+  transition: background 0.15s;
+}
+
+.seat:hover {
+  background: rgba(245,197,24,0.2);
+  border-color: var(--gold);
+  color: var(--gold);
+  transform: scale(1.1);
+  z-index: 2;
+}
+
+.seat:hover::before {
+  background: rgba(245,197,24,0.2);
+  border-color: var(--gold);
+}
+
+/* Sold — padre */
+.seat.sold-padre {
+  background: rgba(245,197,24,0.25);
+  border-color: var(--gold);
+  color: var(--gold);
+  cursor: default;
+}
+.seat.sold-padre::before { background: rgba(245,197,24,0.25); border-color: var(--gold); }
+
+/* Sold — hijo */
+.seat.sold-hijo {
+  background: rgba(130,170,255,0.25);
+  border-color: #82aaff;
+  color: #82aaff;
+  cursor: default;
+}
+.seat.sold-hijo::before { background: rgba(130,170,255,0.25); border-color: #82aaff; }
+
+/* Scanned / Occupied */
+.seat.occupied {
+  background: rgba(0,230,118,0.22);
+  border-color: var(--success);
+  color: var(--success);
+  cursor: default;
+}
+.seat.occupied::before { background: rgba(0,230,118,0.22); border-color: var(--success); }
+
+/* Selected (being assigned) */
+.seat.selected {
+  background: rgba(245,197,24,0.45);
+  border-color: var(--gold-light);
+  color: #0a0a0f;
+  transform: scale(1.15);
+  z-index: 3;
+  box-shadow: 0 0 12px rgba(245,197,24,0.6);
+}
+.seat.selected::before {
+  background: rgba(245,197,24,0.45);
+  border-color: var(--gold-light);
+}
+
+/* Aisle gap */
+.seat-aisle {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Legend ── */
+.seat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.legend-seat {
+  width: 18px;
+  height: 16px;
+  border-radius: 3px 3px 2px 2px;
+  border: 1px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+
+/* ── Seat tooltip ── */
+.seat-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--gold);
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.seat:hover .seat-tooltip { opacity: 1; }
+
+/* ── Seat map modal ── */
+.seat-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.seat-modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: scaleIn 0.25s ease;
+}
+
+.seat-modal-box h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  color: var(--gold);
+  margin-bottom: 0.25rem;
+}
+
+.seat-modal-box .modal-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* ── Selected seat badge ── */
+.selected-seat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(245,197,24,0.15);
+  border: 1px solid rgba(245,197,24,0.4);
+  border-radius: 100px;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-top: 0.75rem;
+}
+
+/* ── Seat config in admin ── */
+.sala-config-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sala-config-row .sc-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 100px;
+}
+
+.sala-config-row input[type="number"] {
+  width: 70px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.sala-config-row .sc-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sala-config-row .sc-total {
+  font-size: 0.78rem;
+  color: var(--gold);
+  font-weight: 700;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: right;
+}
+
+/* ── Mini seat grid (reporte) ── */
+.mini-seat-map {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 0.75rem;
+}
+
+.mini-seat-row {
+  display: flex;
+  gap: 3px;
+}
+
+.mini-seat {
+  width: 14px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--bg-card3);
+}
+
+.mini-seat.sold-padre { background: rgba(245,197,24,0.5); border-color: var(--gold); }
+.mini-seat.sold-hijo  { background: rgba(130,170,255,0.5); border-color: #82aaff; }
+.mini-seat.occupied   { background: rgba(0,230,118,0.5); border-color: var(--success); }
+
+/* Ticket seat info */
+.pt-seat {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #333;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 0.3rem 0.85rem;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.05em;
+}

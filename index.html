@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Al Cine con Papá — Colegio El Educador</title>
+  <meta name="description" content="Sistema de control de ingresos para el evento Al Cine con Papá del Colegio El Educador.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .hero {
+      min-height: calc(100vh - 64px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245,197,24,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(229,9,20,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .filmstrip {
+      display: flex;
+      gap: 1px;
+      margin-bottom: 2rem;
+      opacity: 0.4;
+    }
+    .film-hole {
+      width: 20px; height: 14px;
+      background: #fff;
+      border-radius: 2px;
+      opacity: 0.8;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(245,197,24,0.1);
+      border: 1px solid rgba(245,197,24,0.3);
+      padding: 0.4rem 1rem;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #fff 0%, var(--gold) 50%, #fff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shine 4s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes shine {
+      to { background-position: 200% center; }
+    }
+
+    .hero-sub {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    .hero-school {
+      font-size: 0.85rem;
+      color: var(--gold-dark);
+      font-weight: 700;
+      margin-bottom: 3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
+
+    .quick-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
+      padding: 1.5rem 2rem;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .qs-item {
+      text-align: center;
+      min-width: 90px;
+    }
+
+    .qs-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+      display: block;
+    }
+
+    .qs-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .qs-divider {
+      width: 1px;
+      background: var(--border);
+      align-self: stretch;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    @media (max-width: 500px) { .menu-grid { grid-template-columns: 1fr; } }
+
+    .menu-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 1.75rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .menu-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--accent-color, transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .menu-card:hover::before { opacity: 0.05; }
+    .menu-card:hover {
+      border-color: var(--accent-color, var(--gold));
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+
+    .menu-card .mc-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      filter: drop-shadow(0 0 10px var(--accent-color, rgba(245,197,24,0.4)));
+    }
+
+    .menu-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .menu-card p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .menu-card .mc-arrow {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      font-size: 1.2rem;
+      opacity: 0.3;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .menu-card:hover .mc-arrow { opacity: 0.8; transform: translateX(3px); }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="page-loading" id="page-loading">
+    <div class="load-icon">🎬</div>
+    <div class="load-text">Conectando al servidor...</div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🎬</span>
+      <div>
+        <div class="logo-text">Al Cine con Papá</div>
+        <div class="logo-sub">Colegio El Educador</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active"><span class="nav-icon">🏠</span><span>Inicio</span></a></li>
+      <li><a href="scanner.html"><span class="nav-icon">📱</span><span>Escáner</span></a></li>
+      <li><a href="generator.html"><span class="nav-icon">🎫</span><span>Boletos</span></a></li>
+      <li><a href="reporte.html"><span class="nav-icon">📊</span><span>Reporte</span></a></li>
+      <li><a href="admin.html"><span class="nav-icon">⚙️</span><span>Config</span></a></li>
+    </ul>
+    <div class="conn-status-wrap" style="margin-left:1rem;">
+      <span class="conn-dot disconnected" id="conn-indicator" title="Conectando..."></span>
+      <span id="conn-label" style="display:none;">En línea</span>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <main class="page">
+    <section class="hero">
+      <div class="filmstrip">
+        <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+        <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+        <div class="film-hole"></div><div class="film-hole"></div>
+      </div>
+
+      <div class="hero-badge">🎭 Día del Padre 2026</div>
+
+      <h1>🎬 Al Cine<br>con Papá</h1>
+
+      <p class="hero-sub">Sistema de Control de Ingresos</p>
+      <p class="hero-school">Colegio El Educador</p>
+
+      <div class="quick-stats" id="quick-stats">
+        <div class="qs-item">
+          <span class="qs-value" id="qs-total">0</span>
+          <span class="qs-label">Boletos</span>
+        </div>
+        <div class="qs-divider"></div>
+        <div class="qs-item">
+          <span class="qs-value" id="qs-ingresados">0</span>
+          <span class="qs-label">Ingresados</span>
+        </div>
+        <div class="qs-divider"></div>
+        <div class="qs-item">
+          <span class="qs-value" id="qs-padres">0</span>
+          <span class="qs-label">Padres</span>
+        </div>
+        <div class="qs-divider"></div>
+        <div class="qs-item">
+          <span class="qs-value" id="qs-hijos">0</span>
+          <span class="qs-label">Hijos</span>
+        </div>
+        <div class="qs-divider"></div>
+        <div class="qs-item">
+          <span class="qs-value" id="qs-total-money" style="font-size:1.4rem;">$0</span>
+          <span class="qs-label">Total</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- MENU CARDS -->
+    <div class="menu-grid">
+      <a href="scanner.html" class="menu-card" style="--accent-color: #00e676;">
+        <span class="mc-arrow">→</span>
+        <div class="mc-icon">📱</div>
+        <h3>Escáner QR</h3>
+        <p>Escanear boletos en la entrada de cada sala</p>
+      </a>
+      <a href="generator.html" class="menu-card" style="--accent-color: #f5c518;">
+        <span class="mc-arrow">→</span>
+        <div class="mc-icon">🎫</div>
+        <h3>Generar Boletos</h3>
+        <p>Crear e imprimir boletos QR para padres e hijos</p>
+      </a>
+      <a href="reporte.html" class="menu-card" style="--accent-color: #82aaff;">
+        <span class="mc-arrow">→</span>
+        <div class="mc-icon">📊</div>
+        <h3>Reporte</h3>
+        <p>Ver estadísticas y exportar informe a Excel</p>
+      </a>
+      <a href="admin.html" class="menu-card" style="--accent-color: #ff9800;">
+        <span class="mc-arrow">→</span>
+        <div class="mc-icon">⚙️</div>
+        <h3>Configuración</h3>
+        <p>Editar precios, salas, cartelera y contraseña</p>
+      </a>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    function updateQuickStats() {
+      const st = getStats();
+      document.getElementById('qs-total').textContent = st.total;
+      document.getElementById('qs-ingresados').textContent = st.escaneados;
+      document.getElementById('qs-padres').textContent = st.padres;
+      document.getElementById('qs-hijos').textContent = st.hijos;
+      document.getElementById('qs-total-money').textContent = fmt(st.ingresoTotal);
+    }
+
+    // Called by app.js when initial state is loaded from server
+    function onStateLoaded() {
+      document.getElementById('page-loading').style.display = 'none';
+      updateQuickStats();
+    }
+
+    // Called by app.js when WebSocket pushes an update
+    function onRemoteUpdate(event, data) {
+      updateQuickStats();
+      // Animate stats
+      ['qs-total','qs-ingresados','qs-padres','qs-hijos'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.classList.remove('counter-animate'); void el.offsetWidth; el.classList.add('counter-animate'); }
+      });
+    }
+  </script>
+</body>
+</html>

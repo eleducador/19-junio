@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escáner QR — Al Cine con Papá</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    .scanner-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .scanner-layout { grid-template-columns: 1fr; }
+    }
+
+    .sala-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .sala-btn {
+      padding: 0.5rem 1.1rem;
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 2px solid transparent;
+      background: var(--bg-card2);
+      color: var(--text-muted);
+      transition: all 0.2s;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .sala-btn.active {
+      background: rgba(245,197,24,0.12);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .sala-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+    #reader-wrap {
+      border-radius: 18px;
+      overflow: hidden;
+      background: #000;
+      min-height: 280px;
+      position: relative;
+      border: 2px solid var(--border);
+    }
+
+    #reader-wrap.scanning { border-color: var(--success); box-shadow: 0 0 25px rgba(0,230,118,0.2); }
+
+    #html5qr-code-full-region { border: none !important; }
+    #html5qr-code-full-region video { border-radius: 14px !important; }
+    #html5qr-code-full-region img { display: none; }
+
+    .scanner-hint {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .scanner-hint .hint-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+
+    .scan-controls { display: flex; gap: 0.75rem; margin-top: 1rem; }
+
+    /* Right panel */
+    .stats-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .counters-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .recent-list { max-height: 340px; overflow-y: auto; }
+
+    .scan-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0.85rem;
+      border-radius: 10px;
+      margin-bottom: 0.4rem;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      animation: slideIn 0.3s ease;
+    }
+
+    .scan-item .si-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .scan-item .si-info { flex: 1; min-width: 0; }
+    .scan-item .si-title { font-size: 0.85rem; font-weight: 600; }
+    .scan-item .si-sub { font-size: 0.72rem; color: var(--text-muted); }
+    .scan-item .si-time { font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+
+    .scan-item.padre { border-left: 3px solid var(--gold); }
+    .scan-item.hijo { border-left: 3px solid #82aaff; }
+
+    /* Big result flash */
+    .result-flash {
+      position: fixed;
+      inset: 0;
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .result-flash.show { opacity: 1; pointer-events: all; }
+    .result-flash-inner {
+      text-align: center;
+      padding: 2rem 2.5rem;
+      border-radius: 24px;
+      max-width: 320px;
+      backdrop-filter: blur(20px);
+    }
+    .result-flash-inner.valid { background: rgba(0,230,118,0.15); border: 2px solid var(--success); }
+    .result-flash-inner.invalid { background: rgba(255,23,68,0.15); border: 2px solid var(--error); }
+    .result-flash-inner.warn { background: rgba(255,152,0,0.15); border: 2px solid var(--warn); }
+    .result-flash-inner .rf-icon { font-size: 4rem; }
+    .result-flash-inner .rf-msg { font-size: 1.5rem; font-weight: 800; margin-top: 0.5rem; }
+    .result-flash-inner .rf-detail { font-size: 0.9rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      background: var(--bg-card2);
+      border-radius: 100px;
+      padding: 0.25rem;
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+    .mode-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.4rem;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.2s;
+    }
+    .mode-btn.active { background: var(--gold); color: #0a0a0f; }
+
+    .manual-input {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .manual-input input { flex: 1; }
+
+    #manual-section { display: none; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="page-loading" id="page-loading">
+    <div class="load-icon">📱</div>
+    <div class="load-text">Conectando al servidor...</div>
+  </div>
+
+  <!-- Result flash overlay -->
+  <div class="result-flash" id="result-flash">
+    <div class="result-flash-inner" id="rf-inner">
+      <div class="rf-icon" id="rf-icon"></div>
+      <div class="rf-msg" id="rf-msg"></div>
+      <div class="rf-detail" id="rf-detail"></div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🎬</span>
+      <div>
+        <div class="logo-text">Al Cine con Papá</div>
+        <div class="logo-sub">Colegio El Educador</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html"><span class="nav-icon">🏠</span><span>Inicio</span></a></li>
+      <li><a href="scanner.html" class="active"><span class="nav-icon">📱</span><span>Escáner</span></a></li>
+      <li><a href="generator.html"><span class="nav-icon">🎫</span><span>Boletos</span></a></li>
+      <li><a href="reporte.html"><span class="nav-icon">📊</span><span>Reporte</span></a></li>
+      <li><a href="admin.html"><span class="nav-icon">⚙️</span><span>Config</span></a></li>
+    </ul>
+    <div class="conn-status-wrap" style="margin-left:1rem;">
+      <span class="conn-dot disconnected" id="conn-indicator" title="Conectando..."></span>
+    </div>
+  </nav>
+
+  <main class="page">
+    <div class="container">
+      <div class="page-header">
+        <div class="eyebrow">📱 Control de Acceso</div>
+        <h1>Escáner de Boletos</h1>
+        <p>Selecciona la sala y escanea el código QR del boleto</p>
+      </div>
+
+      <!-- Sala selector -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">🎭 Sala Activa</div>
+        <div class="sala-selector" id="sala-selector"></div>
+        <p style="font-size:0.78rem; color:var(--text-muted);">
+          ⚙️ Si no seleccionas sala, acepta boletos de cualquier sala
+        </p>
+      </div>
+
+      <div class="scanner-layout">
+        <!-- LEFT: Camera -->
+        <div>
+          <div class="card">
+            <div class="card-title">📷 Cámara</div>
+
+            <!-- Mode toggle -->
+            <div class="mode-toggle">
+              <button class="mode-btn active" id="btn-cam" onclick="setMode('cam')">📷 Cámara</button>
+              <button class="mode-btn" id="btn-manual" onclick="setMode('manual')">⌨️ Manual</button>
+            </div>
+
+            <!-- Camera section -->
+            <div id="camera-section">
+              <div id="reader-wrap">
+                <div class="scanner-hint" id="scan-hint">
+                  <div class="hint-icon">📷</div>
+                  <p>Presiona <strong>Iniciar Escáner</strong><br>para activar la cámara</p>
+                </div>
+                <div id="html5qr-code-full-region" style="display:none;"></div>
+              </div>
+
+              <div class="scan-controls">
+                <button class="btn btn-success" id="btn-start" onclick="startScanner()">▶ Iniciar Escáner</button>
+                <button class="btn btn-danger" id="btn-stop" onclick="stopScanner()" style="display:none;">⏹ Detener</button>
+              </div>
+            </div>
+
+            <!-- Manual section -->
+            <div id="manual-section">
+              <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                Ingresa el ID del boleto manualmente o pega el contenido del QR:
+              </p>
+              <div class="manual-input">
+                <input type="text" id="manual-code" placeholder='Ej: B1XYZ23... o JSON del QR'>
+                <button class="btn btn-primary" onclick="processManual()">✔ Validar</button>
+              </div>
+              <p style="font-size:0.72rem; color:var(--text-dim); margin-top:0.5rem;">
+                Útil cuando el lector no puede leer la cámara
+              </p>
+            </div>
+          </div>
+
+          <!-- Last scan result -->
+          <div id="last-result-card" style="display:none; margin-top:1.25rem;">
+            <div class="scan-result" id="last-scan-result">
+              <div class="scan-icon" id="sr-icon"></div>
+              <div class="scan-msg" id="sr-msg"></div>
+              <div class="scan-detail" id="sr-detail"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Stats panel -->
+        <div class="stats-panel">
+          <div class="card">
+            <div class="card-title">📊 Contadores <span id="sala-label" style="color:var(--text-muted);font-size:0.7rem;"></span></div>
+            <div class="counters-grid">
+              <div class="stat-box gold">
+                <div class="stat-value" id="cnt-padres">0</div>
+                <div class="stat-label">👨 Padres</div>
+              </div>
+              <div class="stat-box blue">
+                <div class="stat-value" id="cnt-hijos">0</div>
+                <div class="stat-label">👧 Hijos</div>
+              </div>
+              <div class="stat-box green" style="grid-column:1/-1;">
+                <div class="stat-value" id="cnt-total">0</div>
+                <div class="stat-label">Total Ingresados</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="flex:1;">
+            <div class="card-title">🕐 Últimos Escaneos</div>
+            <div class="recent-list" id="recent-list">
+              <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1rem;">
+                Aún no hay escaneos
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    let scanner = null;
+    let isScanning = false;
+    let activeSala = null;
+    let scanCooldown = false;
+
+    // ── INIT ──────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+    });
+
+    // Called by app.js once state is loaded
+    function onStateLoaded() {
+      document.getElementById('page-loading').style.display = 'none';
+      renderSalaSelector();
+      updateCounters();
+      renderRecent();
+    }
+
+    // Called by app.js when WS pushes an update from another device
+    function onRemoteUpdate(event, data) {
+      updateCounters();
+      renderRecent();
+    }
+
+    function renderSalaSelector() {
+      const s = getState();
+      const el = document.getElementById('sala-selector');
+      el.innerHTML = `<button class="sala-btn active" onclick="setSala(null, this)">Todas las salas</button>`;
+      s.config.salas.forEach(sala => {
+        el.innerHTML += `<button class="sala-btn" onclick="setSala('${sala.id}', this)" style="border-color:transparent;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sala.color};margin-right:4px;"></span>
+          ${sala.nombre}
+        </button>`;
+      });
+    }
+
+    function setSala(salaId, btn) {
+      activeSala = salaId;
+      document.querySelectorAll('.sala-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const s = getState();
+      const sala = s.config.salas.find(sl => sl.id === salaId);
+      document.getElementById('sala-label').textContent = sala ? `· ${sala.nombre}` : '';
+      updateCounters();
+    }
+
+    // ── MODE ─────────────────────────────────────
+    function setMode(mode) {
+      document.getElementById('btn-cam').classList.toggle('active', mode === 'cam');
+      document.getElementById('btn-manual').classList.toggle('active', mode === 'manual');
+      document.getElementById('camera-section').style.display = mode === 'cam' ? 'block' : 'none';
+      document.getElementById('manual-section').style.display = mode === 'manual' ? 'block' : 'none';
+      if (mode === 'manual' && isScanning) stopScanner();
+    }
+
+    // ── SCANNER ───────────────────────────────────
+    function startScanner() {
+      document.getElementById('scan-hint').style.display = 'none';
+      document.getElementById('html5qr-code-full-region').style.display = 'block';
+      document.getElementById('reader-wrap').classList.add('scanning');
+      document.getElementById('btn-start').style.display = 'none';
+      document.getElementById('btn-stop').style.display = 'flex';
+
+      scanner = new Html5Qrcode('html5qr-code-full-region');
+      scanner.start(
+        { facingMode: 'environment' },
+        { fps: 12, qrbox: { width: 220, height: 220 } },
+        onQRScan,
+        () => {}
+      ).catch(err => {
+        showToast('No se pudo acceder a la cámara: ' + err, 'error');
+        stopScanner();
+      });
+      isScanning = true;
+    }
+
+    function stopScanner() {
+      if (scanner && isScanning) {
+        scanner.stop().catch(() => {});
+        isScanning = false;
+      }
+      document.getElementById('html5qr-code-full-region').style.display = 'none';
+      document.getElementById('scan-hint').style.display = 'flex';
+      document.getElementById('reader-wrap').classList.remove('scanning');
+      document.getElementById('btn-start').style.display = 'flex';
+      document.getElementById('btn-stop').style.display = 'none';
+    }
+
+    function onQRScan(decodedText) {
+      if (scanCooldown) return;
+      scanCooldown = true;
+      setTimeout(() => { scanCooldown = false; }, 2500);
+      processScan(decodedText);
+    }
+
+    function processManual() {
+      const code = document.getElementById('manual-code').value.trim();
+      if (!code) { showToast('Ingresa un código', 'warn'); return; }
+      // Try treating as raw ID
+      let payload = code;
+      if (!code.startsWith('{')) {
+        payload = JSON.stringify({ v: 1, id: code, app: 'alcinepapa' });
+      }
+      processScan(payload);
+      document.getElementById('manual-code').value = '';
+    }
+
+    async function processScan(rawQR) {
+      const result = await escanearBoleto(rawQR, activeSala);
+      showScanResult(result);
+      updateCounters();
+      renderRecent();
+      if (result.ok) playBeep(true);
+      else playBeep(false);
+    }
+
+    function showScanResult(result) {
+      const flashOverlay = document.getElementById('result-flash');
+      const flashInner = document.getElementById('rf-inner');
+      const icons = { valid: '✅', invalid: '❌', warn: '⚠️' };
+      const colorClass = result.tipo;
+
+      document.getElementById('rf-icon').textContent = icons[result.tipo] || '❓';
+      document.getElementById('rf-msg').textContent = result.msg;
+      document.getElementById('rf-detail').textContent = result.detail;
+
+      flashInner.className = `result-flash-inner ${colorClass}`;
+      flashOverlay.classList.add('show');
+      setTimeout(() => flashOverlay.classList.remove('show'), 2000);
+
+      // Also update inline card
+      const card = document.getElementById('last-result-card');
+      const res = document.getElementById('last-scan-result');
+      document.getElementById('sr-icon').textContent = icons[result.tipo] || '❓';
+      document.getElementById('sr-msg').textContent = result.msg;
+      document.getElementById('sr-detail').textContent = result.detail;
+      res.className = `scan-result ${result.tipo}`;
+      card.style.display = 'block';
+    }
+
+    function updateCounters() {
+      const st = getStats();
+      if (activeSala) {
+        const sst = st.salas[activeSala] || {};
+        document.getElementById('cnt-padres').textContent = sst.escaneadosPadres || 0;
+        document.getElementById('cnt-hijos').textContent = sst.escaneadosHijos || 0;
+        document.getElementById('cnt-total').textContent = sst.escaneados || 0;
+      } else {
+        document.getElementById('cnt-padres').textContent = st.escaneadosPadres;
+        document.getElementById('cnt-hijos').textContent = st.escaneadosHijos;
+        document.getElementById('cnt-total').textContent = st.escaneados;
+      }
+      // Animate
+      ['cnt-padres','cnt-hijos','cnt-total'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('counter-animate');
+        void el.offsetWidth;
+        el.classList.add('counter-animate');
+      });
+    }
+
+    function renderRecent() {
+      const s = getState();
+      const recent = [...s.scans].reverse().slice(0, 20);
+      const el = document.getElementById('recent-list');
+      if (!recent.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1rem;">Aún no hay escaneos</p>';
+        return;
+      }
+      el.innerHTML = recent.map(sc => {
+        const sala = s.config.salas.find(sl => sl.id === sc.sala);
+        const pel = s.config.peliculas.find(p => p.id === sc.pelicula);
+        const time = new Date(sc.at).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        const icon = sc.tipo === 'padre' ? '👨' : '👧';
+        const tipoLabel = sc.tipo === 'padre' ? 'Padre' : 'Hijo/a';
+        return `
+          <div class="scan-item ${sc.tipo}">
+            <span class="si-icon">${icon}</span>
+            <div class="si-info">
+              <div class="si-title">${tipoLabel} · ${sala ? sala.nombre : sc.sala}</div>
+              <div class="si-sub">${pel ? pel.titulo : ''}</div>
+            </div>
+            <span class="si-time">${time}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── BEEP ─────────────────────────────────────
+    function playBeep(success) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = success ? 880 : 330;
+        osc.type = success ? 'sine' : 'sawtooth';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (success ? 0.3 : 0.5));
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + (success ? 0.3 : 0.5));
+      } catch {}
+    }
+
+    // Click on flash to dismiss
+    document.getElementById('result-flash').addEventListener('click', () => {
+      document.getElementById('result-flash').classList.remove('show');
+    });
+  </script>
+</body>
+</html>
