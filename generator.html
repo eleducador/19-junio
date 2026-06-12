@@ -192,35 +192,7 @@
 
             <hr class="sep">
 
-            <!-- Bulk -->
-            <div class="bulk-section">
-              <div class="card-title">📦 Generación en Lote</div>
-              <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.75rem;">
-                Asigna asientos automáticamente en orden de fila/columna
-              </p>
-              <div class="grid-2" style="margin-bottom:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                  <label>Padres</label>
-                  <input type="number" id="bulk-padres" value="10" min="0" max="500">
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label>Hijos</label>
-                  <input type="number" id="bulk-hijos" value="10" min="0" max="500">
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Sala para el lote</label>
-                <select id="bulk-sala" onchange="updateBulkPeliculaSelector()"></select>
-              </div>
-              <div class="form-group">
-                <label>Película</label>
-                <select id="bulk-pelicula"></select>
-              </div>
-              <button class="btn btn-ghost btn-block" onclick="generarLote()">📦 Generar Lote</button>
-            </div>
-          </div>
-        </div>
-
+            
         <!-- RIGHT: Preview + list -->
         <div>
           <!-- Ticket preview -->
