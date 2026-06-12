@@ -4,10 +4,135 @@
 //  Todos los dispositivos comparten la misma DB
 // ══════════════════════════════════════════════
 
-const AUTH_KEY = 'alcinepapa_auth';
+const AUTH_KEY = 'alcinepapa_admin_token';
+const ADMIN_KEY = 'alcinepapa_admin_data';
+
+// ── Auth ──────────────────────────────────────
+function getAdminToken() {
+  return sessionStorage.getItem(AUTH_KEY);
+}
+
+function isLoggedIn() {
+  return !!sessionStorage.getItem(AUTH_KEY);
+}
+
+function getCurrentAdmin() {
+  const raw = sessionStorage.getItem(ADMIN_KEY);
+  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
+function hasPermiso(permiso) {
+  const a = getCurrentAdmin();
+  if (!a) return false;
+  if (a.rol === 'superadmin') return true;
+  return a.permisos?.[permiso] === true;
+}
+
+function getSalaAdmin() {
+  const a = getCurrentAdmin();
+  if (!a) return null;
+  if (a.rol === 'superadmin') return null; // null = ve todo
+  return a.sala || null;
+}
+
+async function loginAdmin(username, password) {
+  try {
+    const r = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      sessionStorage.setItem(AUTH_KEY, data.token);
+      sessionStorage.setItem(ADMIN_KEY, JSON.stringify(data.admin));
+      return { ok: true, admin: data.admin };
+    }
+    return { ok: false, error: data.error || 'Credenciales incorrectas' };
+  } catch {
+    return { ok: false, error: 'Error de conexión' };
+  }
+}
+
+// Keep old login for backward compat (scanner, etc.)
+async function login(pass) {
+  try {
+    const r = await fetch(`${API_BASE}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
+      body: JSON.stringify({ password: pass })
+    });
+    const data = await r.json();
+    if (data.ok) { sessionStorage.setItem(AUTH_KEY, 'legacy'); return true; }
+    return false;
+  } catch { return false; }
+}
+
+async function logoutAdmin() {
+  const token = getAdminToken();
+  if (token && token !== 'legacy') {
+    try {
+      await fetch(`${API_BASE}/api/admin/logout`, {
+        method: 'POST',
+        headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Admin-Token': token }
+      });
+    } catch {}
+  }
+  sessionStorage.removeItem(AUTH_KEY);
+  sessionStorage.removeItem(ADMIN_KEY);
+}
+
+function logout() {
+  sessionStorage.removeItem(AUTH_KEY);
+  sessionStorage.removeItem(ADMIN_KEY);
+}
+
+// ── Admin API helpers ─────────────────────────
+function adminHeaders() {
+  const token = getAdminToken();
+  return {
+    'Content-Type': 'application/json',
+    'Bypass-Tunnel-Reminder': 'true',
+    ...(token && token !== 'legacy' ? { 'X-Admin-Token': token } : {})
+  };
+}
+
+async function fetchAdmins() {
+  const r = await fetch(`${API_BASE}/api/admins`, {
+    headers: adminHeaders()
+  });
+  return r.json();
+}
+
+async function crearAdmin(data) {
+  const r = await fetch(`${API_BASE}/api/admins`, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify(data)
+  });
+  return r.json();
+}
+
+async function editarAdmin(id, data) {
+  const r = await fetch(`${API_BASE}/api/admins/${id}`, {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(data)
+  });
+  return r.json();
+}
+
+async function eliminarAdmin(id) {
+  const r = await fetch(`${API_BASE}/api/admins/${id}`, {
+    method: 'DELETE',
+    headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Admin-Token': getAdminToken() }
+  });
+  return r.json();
+}
+
+
 
 // ── API Base URL ───────────────────────────────
-// Detecta automáticamente la URL del servidor
 const API_BASE = window.location.origin;
 
 // ── Estado local (caché) ──────────────────────
@@ -38,14 +163,6 @@ function connectWS() {
             // Partial update: add new boletos
             if (_stateCache) {
               data.boletos.forEach(b => { _stateCache.boletos[b.id] = b; });
-            }
-          } else if (data && data.type === 'pago_validado') {
-            if (_stateCache && data.boleto) {
-              _stateCache.boletos[data.boleto.id] = data.boleto;
-            }
-          } else if (data && data.type === 'boleto_deleted') {
-            if (_stateCache && data.id) {
-              delete _stateCache.boletos[data.id];
             }
           } else if (data && data.type === 'scan') {
             // Partial update: mark boleto as scanned
@@ -105,7 +222,7 @@ async function fetchState() {
     console.error('Error fetching state:', e);
     if (_stateCache) return _stateCache;
     // Fallback vacío
-    return { config: { precioPadre: 15000, precioHijo: 8000, moneda: 'COP', salas: [], peliculas: [] }, boletos: {}, scans: [] };
+    return { config: { precioGeneral: 12000, moneda: 'COP', salas: [], peliculas: [] }, boletos: {}, scans: [] };
   }
 }
 
@@ -116,108 +233,60 @@ function getState() {
   fetchState().then(() => {
     if (typeof onRemoteUpdate === 'function') onRemoteUpdate('init', _stateCache);
   });
-  return { config: { precioPadre: 15000, precioHijo: 8000, moneda: 'COP', salas: [], peliculas: [] }, boletos: {}, scans: [] };
+  return { config: { precioGeneral: 12000, moneda: 'COP', salas: [], peliculas: [] }, boletos: {}, scans: [] };
 }
 
-// ── Auth ──────────────────────────────────────
-function isLoggedIn() {
-  return sessionStorage.getItem(AUTH_KEY) === 'ok';
-}
-
-async function login(pass) {
-  try {
-    const r = await fetch(`${API_BASE}/api/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-      body: JSON.stringify({ password: pass })
-    });
-    const data = await r.json();
-    if (data.ok) {
-      sessionStorage.setItem(AUTH_KEY, 'ok');
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-function logout() {
-  sessionStorage.removeItem(AUTH_KEY);
-}
 
 // ── Boleto generation ─────────────────────────
-// Returns Promise<{ok, boletos}>
-async function crearBoleto(tipo, salaId, peliculaId, asiento) {
+// Returns Promise<{ok, boletos, compraId}>
+async function crearReserva(estudiante, grado, salaId, peliculaId, asientos, estado = 'pagado') {
   try {
     const r = await fetch(`${API_BASE}/api/boletos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-      body: JSON.stringify({ tipo, salaId, peliculaId, asiento: asiento || null, cantidad: 1 })
+      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'X-Admin-Token': localStorage.getItem('adminToken') || '' },
+      body: JSON.stringify({ estudiante, grado, salaId, peliculaId, asientos, estado })
     });
     const data = await r.json();
     if (data.ok && data.boletos && _stateCache) {
       data.boletos.forEach(b => { _stateCache.boletos[b.id] = b; });
     }
-    return data.ok ? data.boletos[0].id : null;
+    return data;
   } catch (e) {
-    console.error('Error creando boleto:', e);
-    return null;
+    console.error('Error creando reserva:', e);
+    return { ok: false, error: e.message };
   }
 }
 
-// Crear múltiples boletos de una vez
-async function crearBoletos(tipo, salaId, peliculaId, cantidad) {
+async function liberarBoleto(id) {
   try {
-    const r = await fetch(`${API_BASE}/api/boletos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-      body: JSON.stringify({ tipo, salaId, peliculaId, cantidad })
-    });
-    const data = await r.json();
-    if (data.ok && data.boletos && _stateCache) {
-      data.boletos.forEach(b => { _stateCache.boletos[b.id] = b; });
-    }
-    return data.ok ? data.boletos : [];
-  } catch (e) {
-    console.error('Error creando boletos:', e);
-    return [];
-  }
-}
-
-// Eliminar boleto (Liberar asiento)
-async function liberarBoleto(boletoId) {
-  if (!confirm('¿Seguro que quieres liberar este asiento? El boleto será eliminado.')) return false;
-  try {
-    const r = await fetch(`${API_BASE}/api/boletos/${boletoId}`, {
+    const r = await fetch(`${API_BASE}/api/boletos/${id}`, {
       method: 'DELETE',
-      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      headers: adminHeaders()
     });
     const data = await r.json();
     if (data.ok && _stateCache) {
-      delete _stateCache.boletos[boletoId];
+      delete _stateCache.boletos[id];
     }
     return data.ok;
   } catch (e) {
-    console.error('Error al liberar boleto:', e);
+    console.error('Error liberando boleto:', e);
     return false;
   }
 }
 
-// Aprobar pago
-async function validarPago(boletoId) {
+async function pagarBoleto(id) {
   try {
-    const r = await fetch(`${API_BASE}/api/pagar/${boletoId}`, {
+    const r = await fetch(`${API_BASE}/api/boletos/${id}/pagar`, {
       method: 'PUT',
-      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      headers: adminHeaders()
     });
     const data = await r.json();
     if (data.ok && _stateCache) {
-      _stateCache.boletos[boletoId].pagado = true;
+      _stateCache.boletos[id] = data.boleto;
     }
     return data.ok;
   } catch (e) {
-    console.error('Error al validar pago:', e);
+    console.error('Error pagando boleto:', e);
     return false;
   }
 }
@@ -345,7 +414,7 @@ async function saveConfig(configData, newPassword) {
   try {
     const r = await fetch(`${API_BASE}/api/config`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
+      headers: adminHeaders(),
       body: JSON.stringify(body)
     });
     const data = await r.json();
@@ -365,7 +434,7 @@ async function resetData() {
   try {
     await fetch(`${API_BASE}/api/reset`, { 
       method: 'DELETE',
-      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      headers: adminHeaders()
     });
     if (_stateCache) { _stateCache.boletos = {}; _stateCache.scans = []; }
     showToast('Datos borrados correctamente', 'warn');
@@ -419,7 +488,7 @@ function exportarExcel() {
   if (!XLSX) { showToast('Librería Excel no cargada', 'error'); return; }
 
   const detalle = [
-    ['ID Boleto', 'Tipo', 'Sala', 'Película', 'Asiento', 'Precio', 'Pagado', 'Vendido', 'Escaneado', 'Hora Escaneo']
+    ['ID Boleto', 'Tipo', 'Sala', 'Película', 'Asiento', 'Precio', 'Vendido', 'Escaneado', 'Hora Escaneo']
   ];
   boletos.forEach(b => {
     const sala = s.config.salas.find(sl => sl.id === b.sala);
@@ -429,7 +498,7 @@ function exportarExcel() {
       sala ? sala.nombre : b.sala, pel ? pel.titulo : b.pelicula,
       b.asiento ? seatLabel(b.asiento) : 'Sin asiento',
       b.tipo === 'padre' ? s.config.precioPadre : s.config.precioHijo,
-      b.pagado ? 'Sí' : 'No', b.vendido ? 'Sí' : 'No', b.escaneado ? 'Sí' : 'No',
+      b.vendido ? 'Sí' : 'No', b.escaneado ? 'Sí' : 'No',
       b.escaneadoAt ? fmtDate(b.escaneadoAt) : ''
     ]);
   });
@@ -480,9 +549,27 @@ function exportarExcel() {
   showToast('¡Excel descargado exitosamente!', 'success');
 }
 
+// ── Update Navbar based on Auth ────────────────
+function updateNavbar() {
+  const loggedIn = isLoggedIn();
+  
+  document.querySelectorAll('.nav-links a').forEach(a => {
+    const href = a.getAttribute('href');
+    if (href === 'scanner.html') {
+      a.parentElement.style.display = loggedIn ? '' : 'none';
+    } else if (href === 'reporte.html') {
+      a.parentElement.style.display = (loggedIn && hasPermiso('verEstadisticas')) ? '' : 'none';
+    } else if (href === 'admin.html') {
+      const label = a.querySelector('span:last-child');
+      if (label) label.textContent = loggedIn ? 'Config' : 'Login';
+    }
+  });
+}
+
 // ── Init: cargar estado y conectar WS ─────────
 document.addEventListener('DOMContentLoaded', async () => {
   setActiveNav();
+  updateNavbar();
   await fetchState();
   connectWS();
   // Allow page to render after state is loaded

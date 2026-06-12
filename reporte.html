@@ -156,14 +156,9 @@
       <!-- INCOME -->
       <div class="grid-3" style="margin-bottom:1.5rem;">
         <div class="income-card">
-          <div class="ic-label">👨 Padres</div>
-          <div class="ic-value" id="inc-padres">$0</div>
-          <div class="ic-sub" id="inc-padres-count">0 boletos</div>
-        </div>
-        <div class="income-card">
-          <div class="ic-label">👧 Hijos</div>
-          <div class="ic-value" id="inc-hijos">$0</div>
-          <div class="ic-sub" id="inc-hijos-count">0 boletos</div>
+          <div class="ic-label">🎫 Asientos Vendidos</div>
+          <div class="ic-value" id="inc-asientos">0</div>
+          <div class="ic-sub" id="inc-asientos-val">$0 recaudado</div>
         </div>
         <div class="income-card" style="background:linear-gradient(135deg,rgba(0,230,118,0.15) 0%,rgba(0,230,118,0.04) 100%); border-color:rgba(0,230,118,0.3);">
           <div class="ic-label" style="color:var(--success);">💰 Total General</div>
@@ -187,10 +182,11 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Tipo</th>
+                  <th>Estudiante</th>
+                  <th>Grado</th>
                   <th>Sala</th>
                   <th>Película</th>
-                  <th>ID Boleto</th>
+                  <th>Asiento</th>
                   <th>Hora de Ingreso</th>
                 </tr>
               </thead>
@@ -207,7 +203,21 @@
 
   <script src="app.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => { setActiveNav(); });
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      
+      if (!isLoggedIn()) {
+        showToast('Debes iniciar sesión para ver esta página', 'warn');
+        setTimeout(() => { location.href = 'admin.html'; }, 1500);
+        return;
+      }
+      
+      if (!hasPermiso('verEstadisticas')) {
+        showToast('No tienes permiso para ver estadísticas', 'error');
+        setTimeout(() => { location.href = 'admin.html'; }, 1500);
+        return;
+      }
+    });
 
     function onStateLoaded() {
       document.getElementById('page-loading').style.display = 'none';
@@ -221,98 +231,184 @@
     function renderAll() {
       const st = getStats();
       const s = getState();
+      const mySala = getSalaAdmin(); // null if superadmin, or salaId
 
-      // Summary
-      document.getElementById('st-total').textContent = st.total;
-      document.getElementById('st-ingresados').textContent = st.escaneados;
-      document.getElementById('st-pendientes').textContent = st.total - st.escaneados;
-      const pct = st.total > 0 ? Math.round((st.escaneados / st.total) * 100) : 0;
-      document.getElementById('st-pct').textContent = pct + '%';
-
-      // Income
-      document.getElementById('inc-padres').textContent = fmt(st.ingresoPadres);
-      document.getElementById('inc-padres-count').textContent = `${st.padres} boletos · ${fmt(s.config.precioPadre)} c/u`;
-      document.getElementById('inc-hijos').textContent = fmt(st.ingresoHijos);
-      document.getElementById('inc-hijos-count').textContent = `${st.hijos} boletos · ${fmt(s.config.precioHijo)} c/u`;
-      document.getElementById('inc-total').textContent = fmt(st.ingresoTotal);
-      document.getElementById('inc-total-count').textContent = `${st.total} boletos totales`;
-
-      // Salas report
-      const salasEl = document.getElementById('salas-report');
-      salasEl.innerHTML = '';
-      s.config.salas.forEach((sala, idx) => {
-        const sst = st.salas[sala.id] || {};
-        const pel = s.config.peliculas.find(p => p.sala === sala.id);
-        const pct2 = sst.total > 0 ? Math.round((sst.escaneados / sst.total) * 100) : 0;
+      if (mySala) {
+        // Filter stats and state to only include mySala
+        const sst = st.salas[mySala] || {};
+        const mySalaObj = s.config.salas.find(sl => sl.id === mySala);
+        const mySalaName = mySalaObj ? mySalaObj.nombre : mySala;
+        
+        // Summary for mySala only
+        document.getElementById('st-total').textContent = sst.total || 0;
+        document.getElementById('st-ingresados').textContent = sst.escaneados || 0;
+        document.getElementById('st-pendientes').textContent = (sst.total || 0) - (sst.escaneados || 0);
+        const pct = sst.total > 0 ? Math.round((sst.escaneados / sst.total) * 100) : 0;
+        document.getElementById('st-pct').textContent = pct + '%';
+        
+        // Income for mySala only
         const incSala = sst.ingreso || 0;
+        
+        document.getElementById('inc-asientos').textContent = sst.pagados || 0;
+        document.getElementById('inc-asientos-val').textContent = `${fmt(incSala)} recaudado`;
+        document.getElementById('inc-total').textContent = fmt(incSala);
+        document.getElementById('inc-total-count').textContent = `${sst.total || 0} asientos totales`;
+        
+        // Salas report (only show mySala)
+        const salasEl = document.getElementById('salas-report');
+        salasEl.innerHTML = '';
+        if (mySalaObj) {
+          const pel = s.config.peliculas.find(p => p.sala === mySala);
+          const pct2 = sst.total > 0 ? Math.round((sst.escaneados / sst.total) * 100) : 0;
+          const incSala = sst.ingreso || 0;
+          
+          const div = document.createElement('div');
+          div.className = 'sala-report';
+          div.innerHTML = `
+            <div class="sala-report-header" style="background:${mySalaObj.color}18; border-bottom:1px solid ${mySalaObj.color}33;">
+              <div style="display:flex; align-items:center; gap:0.75rem;">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${mySalaObj.color};"></span>
+                <span style="font-weight:700; font-size:1rem;">${mySalaObj.nombre}</span>
+                ${pel ? `<span class="badge badge-gray">🎬 ${pel.titulo} · ${pel.hora}</span>` : ''}
+              </div>
+              <span style="font-family:'Playfair Display',serif; font-size:1.2rem; color:${mySalaObj.color}; font-weight:700;">${fmt(incSala)}</span>
+            </div>
+            <div class="sala-report-body">
+              <div class="sala-stats-row">
+                <div class="sala-stat">
+                  <div class="ss-val" style="color:var(--gold);">${sst.padres || 0}</div>
+                  <div class="ss-label">👨 Padres vendidos</div>
+                </div>
+                <div class="sala-stat">
+                  <div class="ss-val" style="color:#82aaff;">${sst.hijos || 0}</div>
+                  <div class="ss-label">👧 Hijos vendidos</div>
+                </div>
+                <div class="sala-stat">
+                  <div class="ss-val" style="color:var(--success);">${sst.escaneados || 0}</div>
+                  <div class="ss-label">✅ Ingresaron</div>
+                </div>
+              </div>
+              <div class="progress-bar-wrap" title="${pct2}% ingresados">
+                <div class="progress-bar" style="width:${pct2}%; background:${mySalaObj.color};"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">
+                <span>${sst.escaneados || 0} ingresaron de ${sst.total || 0}</span>
+                <span>${pct2}% asistencia</span>
+              </div>
+            </div>
+          `;
+          salasEl.appendChild(div);
+        } else {
+          salasEl.innerHTML = '<p style="color:var(--text-muted); font-size:.85rem; text-align:center; padding:1rem;">Sala asignada no encontrada en el sistema.</p>';
+        }
+        
+        // Scan history (only show mySala scans)
+        const scans = [...s.scans].filter(sc => sc.sala === mySala).reverse();
+        const tbody = document.getElementById('scan-history-body');
+        const empty = document.getElementById('scan-empty');
+        if (!scans.length) {
+          tbody.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        tbody.innerHTML = scans.map((sc, i) => {
+          const pel = s.config.peliculas.find(p => p.id === sc.pelicula);
+          return `<tr>
+            <td style="color:var(--text-muted);">${scans.length - i}</td>
+            <td><span class="badge badge-gray">${sc.estudiante || '—'}</span></td>
+            <td><span class="badge badge-gray">${sc.grado || '—'}</span></td>
+            <td>${mySalaName}</td>
+            <td style="color:var(--text-muted);">${pel ? pel.titulo : '—'}</td>
+            <td style="font-family:monospace; font-size:0.78rem; color:var(--text-muted);">${sc.asiento ? ('F' + sc.asiento.fila + '-' + (sc.asiento.col+1)) : sc.boletoId}</td>
+            <td>${fmtDate(sc.at)}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        // Superadmin summary
+        document.getElementById('st-total').textContent = st.total;
+        document.getElementById('st-ingresados').textContent = st.escaneados;
+        document.getElementById('st-pendientes').textContent = st.total - st.escaneados;
+        const pct = st.total > 0 ? Math.round((st.escaneados / st.total) * 100) : 0;
+        document.getElementById('st-pct').textContent = pct + '%';
 
-        const div = document.createElement('div');
-        div.className = 'sala-report';
-        div.innerHTML = `
-          <div class="sala-report-header" style="background:${sala.color}18; border-bottom:1px solid ${sala.color}33;">
-            <div style="display:flex; align-items:center; gap:0.75rem;">
-              <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${sala.color};"></span>
-              <span style="font-weight:700; font-size:1rem;">${sala.nombre}</span>
-              ${pel ? `<span class="badge badge-gray">🎬 ${pel.titulo} · ${pel.hora}</span>` : ''}
-            </div>
-            <span style="font-family:'Playfair Display',serif; font-size:1.2rem; color:${sala.color}; font-weight:700;">${fmt(incSala)}</span>
-          </div>
-          <div class="sala-report-body">
-            <div class="sala-stats-row">
-              <div class="sala-stat">
-                <div class="ss-val" style="color:var(--gold);">${sst.padres || 0}</div>
-                <div class="ss-label">👨 Padres vendidos</div>
-              </div>
-              <div class="sala-stat">
-                <div class="ss-val" style="color:#82aaff;">${sst.hijos || 0}</div>
-                <div class="ss-label">👧 Hijos vendidos</div>
-              </div>
-              <div class="sala-stat">
-                <div class="ss-val" style="color:var(--success);">${sst.escaneados || 0}</div>
-                <div class="ss-label">✅ Ingresaron</div>
-              </div>
-            </div>
-            <div class="progress-bar-wrap" title="${pct2}% ingresados">
-              <div class="progress-bar" style="width:${pct2}%; background:${sala.color};"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">
-              <span>${sst.escaneados || 0} ingresaron de ${sst.total || 0}</span>
-              <span>${pct2}% asistencia</span>
-            </div>
-          </div>
-        `;
-        salasEl.appendChild(div);
-      });
+        // Superadmin Income
+        document.getElementById('inc-asientos').textContent = st.pagados || 0;
+        document.getElementById('inc-asientos-val').textContent = `${fmt(st.ingresoTotal)} recaudado`;
+        document.getElementById('inc-total').textContent = fmt(st.ingresoTotal);
+        document.getElementById('inc-total-count').textContent = `${st.total} asientos totales`;
 
-      if (!s.config.salas.length) {
-        salasEl.innerHTML = '<p style="color:var(--text-muted); font-size:.85rem; text-align:center; padding:1rem;">Sin salas configuradas. Ve a Configuración → Salas.</p>';
+        // Superadmin Salas report
+        const salasEl = document.getElementById('salas-report');
+        salasEl.innerHTML = '';
+        s.config.salas.forEach((sala, idx) => {
+          const sst = st.salas[sala.id] || {};
+          const pel = s.config.peliculas.find(p => p.sala === sala.id);
+          const pct2 = sst.total > 0 ? Math.round((sst.escaneados / sst.total) * 100) : 0;
+          const incSala = sst.ingreso || 0;
+
+          const div = document.createElement('div');
+          div.className = 'sala-report';
+          div.innerHTML = `
+            <div class="sala-report-header" style="background:${sala.color}18; border-bottom:1px solid ${sala.color}33;">
+              <div style="display:flex; align-items:center; gap:0.75rem;">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${sala.color};"></span>
+                <span style="font-weight:700; font-size:1rem;">${sala.nombre}</span>
+                ${pel ? `<span class="badge badge-gray">🎬 ${pel.titulo} · ${pel.hora}</span>` : ''}
+              </div>
+              <span style="font-family:'Playfair Display',serif; font-size:1.2rem; color:${sala.color}; font-weight:700;">${fmt(incSala)}</span>
+            </div>
+            <div class="sala-report-body">
+              <div class="sala-stats-row">
+                <div class="sala-stat">
+                  <div class="ss-val" style="color:var(--gold);">${sst.pagados || 0}</div>
+                  <div class="ss-label">🎫 Asientos vendidos</div>
+                </div>
+                <div class="sala-stat">
+                  <div class="ss-val" style="color:var(--success);">${sst.escaneados || 0}</div>
+                  <div class="ss-label">✅ Ingresaron</div>
+                </div>
+              </div>
+              <div class="progress-bar-wrap" title="${pct2}% ingresados">
+                <div class="progress-bar" style="width:${pct2}%; background:${sala.color};"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">
+                <span>${sst.escaneados || 0} ingresaron de ${sst.total || 0}</span>
+                <span>${pct2}% asistencia</span>
+              </div>
+            </div>
+          `;
+          salasEl.appendChild(div);
+        });
+
+        if (!s.config.salas.length) {
+          salasEl.innerHTML = '<p style="color:var(--text-muted); font-size:.85rem; text-align:center; padding:1rem;">Sin salas configuradas. Ve a Configuración → Salas.</p>';
+        }
+
+        // Superadmin Scan history
+        const scans = [...s.scans].reverse();
+        const tbody = document.getElementById('scan-history-body');
+        const empty = document.getElementById('scan-empty');
+        if (!scans.length) {
+          tbody.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        tbody.innerHTML = scans.map((sc, i) => {
+          const sala = s.config.salas.find(sl => sl.id === sc.sala);
+          const pel = s.config.peliculas.find(p => p.id === sc.pelicula);
+          return `<tr>
+            <td style="color:var(--text-muted);">${scans.length - i}</td>
+            <td><span class="badge badge-gray">${sc.estudiante || '—'}</span></td>
+            <td><span class="badge badge-gray">${sc.grado || '—'}</span></td>
+            <td>${sala ? sala.nombre : sc.sala}</td>
+            <td style="color:var(--text-muted);">${pel ? pel.titulo : '—'}</td>
+            <td style="font-family:monospace; font-size:0.78rem; color:var(--text-muted);">${sc.asiento ? ('F' + sc.asiento.fila + '-' + (sc.asiento.col+1)) : sc.boletoId}</td>
+            <td>${fmtDate(sc.at)}</td>
+          </tr>`;
+        }).join('');
       }
-
-      // Scan history
-      const scans = [...s.scans].reverse();
-      const tbody = document.getElementById('scan-history-body');
-      const empty = document.getElementById('scan-empty');
-      if (!scans.length) {
-        tbody.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-      tbody.innerHTML = scans.map((sc, i) => {
-        const sala = s.config.salas.find(sl => sl.id === sc.sala);
-        const pel = s.config.peliculas.find(p => p.id === sc.pelicula);
-        const icon = sc.tipo === 'padre' ? '👨' : '👧';
-        const tipoLabel = sc.tipo === 'padre' ? 'Padre' : 'Hijo/a';
-        const badgeClass = sc.tipo === 'padre' ? 'badge-gold' : 'badge-blue';
-        return `<tr>
-          <td style="color:var(--text-muted);">${scans.length - i}</td>
-          <td><span class="badge ${badgeClass}">${icon} ${tipoLabel}</span></td>
-          <td>${sala ? sala.nombre : sc.sala}</td>
-          <td style="color:var(--text-muted);">${pel ? pel.titulo : '—'}</td>
-          <td style="font-family:monospace; font-size:0.78rem; color:var(--text-muted);">${sc.boletoId}</td>
-          <td>${fmtDate(sc.at)}</td>
-        </tr>`;
-      }).join('');
     }
   </script>
 </body>

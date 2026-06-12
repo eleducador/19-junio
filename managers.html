@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestionar Administradores — Al Cine con Papá</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .manager-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    @media (min-width: 768px) {
+      .manager-grid {
+        grid-template-columns: 350px 1fr;
+      }
+    }
+
+    .perm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      user-select: none;
+      cursor: pointer;
+    }
+    .checkbox-group input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .manager-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .manager-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--gold);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .manager-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+    .manager-card:hover::before {
+      opacity: 1;
+    }
+
+    .mc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .mc-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .mc-username {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .mc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+    .badge {
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-role {
+      background: rgba(245, 197, 24, 0.1);
+      color: var(--gold);
+      border: 1px solid rgba(245, 197, 24, 0.25);
+    }
+    .badge-sala {
+      background: rgba(0, 230, 118, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(0, 230, 118, 0.25);
+    }
+    .badge-no-sala {
+      background: rgba(255, 23, 68, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(255, 23, 68, 0.25);
+    }
+
+    .perms-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .badge-perm {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.65rem;
+      border-radius: 4px;
+      padding: 0.15rem 0.35rem;
+    }
+    .badge-perm.active {
+      background: rgba(130, 170, 255, 0.08);
+      color: #82aaff;
+      border-color: rgba(130, 170, 255, 0.25);
+    }
+
+    .mc-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: auto;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 0.75rem;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-card {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 500px;
+      padding: 2rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 1.4rem;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.25rem;
+    }
+    .modal-close:hover {
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🎬</span>
+      <div>
+        <div class="logo-text">Al Cine con Papá</div>
+        <div class="logo-sub">Colegio El Educador</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html"><span class="nav-icon">🏠</span><span>Inicio</span></a></li>
+      <li><a href="scanner.html"><span class="nav-icon">📱</span><span>Escáner</span></a></li>
+      <li><a href="generator.html"><span class="nav-icon">🎫</span><span>Boletos</span></a></li>
+      <li><a href="reporte.html"><span class="nav-icon">📊</span><span>Reporte</span></a></li>
+      <li><a href="admin.html" class="active"><span class="nav-icon">⚙️</span><span>Config</span></a></li>
+    </ul>
+  </nav>
+
+  <main class="page">
+    <div class="container">
+      <div class="page-header" style="text-align: left; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div class="eyebrow" style="text-align: left;">👥 Configuración de Cuentas</div>
+          <h1 style="text-align: left;">Administradores de Salas</h1>
+          <p style="text-align: left; color: var(--text-muted);">Asigna qué persona gestiona cada sala y qué acciones puede realizar.</p>
+        </div>
+        <a href="admin.html" class="btn btn-ghost">⬅️ Volver a Config</a>
+      </div>
+
+      <div class="manager-grid">
+        <!-- FORMULARIO CREAR -->
+        <div>
+          <div class="card">
+            <div class="card-title">➕ Crear Administrador</div>
+            <form id="create-form" onsubmit="handleCrear(event)">
+              <div class="form-group">
+                <label for="new-nombre">Nombre Completo</label>
+                <input type="text" id="new-nombre" required placeholder="Ej: Juan Pérez">
+              </div>
+              <div class="form-group">
+                <label for="new-username">Nombre de Usuario</label>
+                <input type="text" id="new-username" required placeholder="Ej: juan.sala1" autocomplete="username">
+              </div>
+              <div class="form-group">
+                <label for="new-telefono">Número de WhatsApp</label>
+                <input type="tel" id="new-telefono" placeholder="Ej: +573001234567" title="Incluye el código de país sin espacios">
+                <small style="display:block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">Los padres enviarán un mensaje a este número al reservar.</small>
+              </div>
+              <div class="form-group">
+                <label for="new-password">Contraseña</label>
+                <input type="password" id="new-password" required placeholder="Ingresa una contraseña" autocomplete="new-password">
+              </div>
+              <div class="form-group">
+                <label for="new-sala">Sala Asignada</label>
+                <select id="new-sala" required>
+                  <option value="">-- Selecciona una sala --</option>
+                </select>
+                <small style="display:block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">El administrador solo podrá ver las reservas de la sala que selecciones.</small>
+              </div>
+
+              <div class="form-group">
+                <label>Permisos Autorizados</label>
+                <div class="perm-grid">
+                  <label class="checkbox-group">
+                    <input type="checkbox" id="new-perm-separar" checked>
+                    <span>Separar Asientos</span>
+                  </label>
+                  <label class="checkbox-group">
+                    <input type="checkbox" id="new-perm-pagar" checked>
+                    <span>Confirmar Pagos</span>
+                  </label>
+                  <label class="checkbox-group">
+                    <input type="checkbox" id="new-perm-liberar" checked>
+                    <span>Liberar Reservas</span>
+                  </label>
+                  <label class="checkbox-group">
+                    <input type="checkbox" id="new-perm-stats" checked>
+                    <span>Ver Estadísticas</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">➕ Registrar Administrador</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- LISTADO -->
+        <div>
+          <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>👥</span> Cuentas Registradas (<span id="admins-count">0</span>)
+          </h2>
+          <div id="admins-list">
+            <!-- Cargando... -->
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Cargando administradores...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL EDITAR -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Editar Administrador</h3>
+        <button class="modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      <form id="edit-form" onsubmit="handleEditar(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label for="edit-nombre">Nombre Completo</label>
+          <input type="text" id="edit-nombre" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-telefono">Número de WhatsApp</label>
+          <input type="tel" id="edit-telefono" placeholder="Ej: +573001234567">
+        </div>
+        <div class="form-group">
+          <label for="edit-username">Nombre de Usuario</label>
+          <input type="text" id="edit-username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="edit-password">Nueva Contraseña</label>
+          <input type="password" id="edit-password" placeholder="Dejar en blanco para no cambiar" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label for="edit-sala">Sala Asignada</label>
+          <select id="edit-sala" required>
+            <option value="">-- Selecciona una sala --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Permisos Autorizados</label>
+          <div class="perm-grid">
+            <label class="checkbox-group">
+              <input type="checkbox" id="edit-perm-separar">
+              <span>Separar Asientos</span>
+            </label>
+            <label class="checkbox-group">
+              <input type="checkbox" id="edit-perm-pagar">
+              <span>Confirmar Pagos</span>
+            </label>
+            <label class="checkbox-group">
+              <input type="checkbox" id="edit-perm-liberar">
+              <span>Liberar Reservas</span>
+            </label>
+            <label class="checkbox-group">
+              <input type="checkbox" id="edit-perm-stats">
+              <span>Ver Estadísticas</span>
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+          <button type="button" class="btn btn-ghost" style="flex:1" onclick="closeEditModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="flex:2">💾 Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let _admins = [];
+    let _salas = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      
+      // Proteger la página
+      const admin = getCurrentAdmin();
+      if (!isLoggedIn() || !admin || admin.rol !== 'superadmin') {
+        showToast('Acceso denegado', 'error');
+        setTimeout(() => { location.href = 'admin.html'; }, 1500);
+        return;
+      }
+
+      loadData();
+    });
+
+    async function loadData() {
+      try {
+        const s = await fetchState();
+        _salas = s.config.salas || [];
+        
+        // Cargar salas en los selects
+        populateSalasSelects();
+
+        // Cargar administradores
+        _admins = await fetchAdmins();
+        renderAdmins();
+      } catch (e) {
+        showToast('Error cargando los datos', 'error');
+        console.error(e);
+      }
+    }
+
+    function onStateLoaded() {
+      loadData();
+    }
+
+    function onRemoteUpdate() {
+      loadData();
+    }
+
+    function populateSalasSelects() {
+      const selectNew = document.getElementById('new-sala');
+      const selectEdit = document.getElementById('edit-sala');
+      
+      const optionsHtml = _salas.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+      
+      selectNew.innerHTML = '<option value="">-- Selecciona una sala --</option>' + optionsHtml;
+      selectEdit.innerHTML = '<option value="">-- Selecciona una sala --</option>' + optionsHtml;
+    }
+
+    function renderAdmins() {
+      const el = document.getElementById('admins-list');
+      const countEl = document.getElementById('admins-count');
+      
+      if (!_admins || !_admins.length) {
+        el.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem; text-align:center; padding: 2rem;">No hay administradores registrados.</p>';
+        countEl.textContent = '0';
+        return;
+      }
+      
+      // Filtrar superadmin para no mostrarlo en la lista editable, o mostrarlo como lectura
+      countEl.textContent = _admins.filter(a => a.rol !== 'superadmin').length;
+
+      el.innerHTML = _admins.map(a => {
+        const isSA = a.rol === 'superadmin';
+        const sala = _salas.find(s => s.id === a.sala);
+        const salaName = sala ? sala.nombre : a.sala;
+        const telefonoDisplay = a.telefono ? `📞 ${a.telefono}` : '<span style="color:var(--text-muted)">Sin número configurado</span>';
+        
+        const perms = [];
+        if (a.permisos?.separarAsientos) perms.push('Separar');
+        if (a.permisos?.confirmarPagos) perms.push('Pagar');
+        if (a.permisos?.liberarReservas) perms.push('Liberar');
+        if (a.permisos?.verEstadisticas) perms.push('Estadísticas');
+        if (a.permisos?.configurar) perms.push('Configurar');
+
+        return `
+          <div class="manager-card" style="${isSA ? 'border-color: rgba(245, 197, 24, 0.4); background: rgba(245, 197, 24, 0.02);' : ''}">
+            <div class="mc-header">
+              <div>
+                <div class="mc-title">${a.nombre} ${isSA ? '👑' : ''}</div>
+                <div class="mc-username">@${a.username}</div>
+                <div style="font-size: 0.8rem; margin: 0.2rem 0;">${telefonoDisplay}</div>
+              </div>
+              <div class="mc-meta">
+                <span class="badge badge-role">${isSA ? 'Super Admin' : 'Admin'}</span>
+                ${isSA 
+                  ? '<span class="badge badge-sala">Todas las salas</span>' 
+                  : (salaName ? `<span class="badge badge-sala" style="border-color:${sala?.color || ''}; color:${sala?.color || ''}; background: ${sala?.color ? sala.color + '10' : ''}">${salaName}</span>` : '<span class="badge badge-no-sala">Sin sala</span>')
+                }
+              </div>
+            </div>
+            
+            <div class="form-group" style="margin:0;">
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem; font-weight:600;">Permisos activos:</div>
+              <div class="perms-list">
+                <span class="badge-perm ${a.permisos?.separarAsientos ? 'active' : ''}">🛋️ Reservar</span>
+                <span class="badge-perm ${a.permisos?.confirmarPagos ? 'active' : ''}">💰 Confirmar</span>
+                <span class="badge-perm ${a.permisos?.liberarReservas ? 'active' : ''}">🗑️ Liberar</span>
+                <span class="badge-perm ${a.permisos?.verEstadisticas ? 'active' : ''}">📊 Reporte</span>
+                ${isSA ? '<span class="badge-perm active">⚙️ Configuración</span>' : ''}
+              </div>
+            </div>
+
+            ${isSA ? '' : `
+              <div class="mc-actions">
+                <button class="btn btn-ghost btn-sm" onclick="openEditModal('${a.id}')" style="padding:0.4rem 0.8rem; font-size:0.8rem;">✏️ Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="handleEliminar('${a.id}', '${a.nombre}')" style="padding:0.4rem 0.8rem; font-size:0.8rem; margin-left:auto;">🗑️ Eliminar</button>
+              </div>
+            `}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function handleCrear(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('new-nombre').value.trim();
+      const username = document.getElementById('new-username').value.trim();
+      const password = document.getElementById('new-password').value;
+      const sala = document.getElementById('new-sala').value;
+      const telefono = document.getElementById('new-telefono').value.trim();
+      
+      const permissions = {
+        separarAsientos: document.getElementById('new-perm-separar').checked,
+        confirmarPagos: document.getElementById('new-perm-pagar').checked,
+        liberarReservas: document.getElementById('new-perm-liberar').checked,
+        verEstadisticas: document.getElementById('new-perm-stats').checked
+      };
+
+      try {
+        const res = await crearAdmin({
+          nombre, username, password, sala, telefono, permisos: permissions
+        });
+        
+        if (res.ok) {
+          showToast(`Administrador "${nombre}" creado con éxito`, 'success');
+          document.getElementById('create-form').reset();
+          loadData();
+        } else {
+          showToast(res.error || 'Error al crear administrador', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexión con el servidor', 'error');
+      }
+    }
+
+    function openEditModal(id) {
+      const a = _admins.find(adm => adm.id === id);
+      if (!a) return;
+
+      document.getElementById('edit-id').value = a.id;
+      document.getElementById('edit-nombre').value = a.nombre;
+      document.getElementById('edit-username').value = a.username;
+      document.getElementById('edit-password').value = '';
+      document.getElementById('edit-sala').value = a.sala || '';
+      document.getElementById('edit-telefono').value = a.telefono || '';
+      
+      document.getElementById('edit-perm-separar').checked = !!a.permisos?.separarAsientos;
+      document.getElementById('edit-perm-pagar').checked = !!a.permisos?.confirmarPagos;
+      document.getElementById('edit-perm-liberar').checked = !!a.permisos?.liberarReservas;
+      document.getElementById('edit-perm-stats').checked = !!a.permisos?.verEstadisticas;
+
+      document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-modal').style.display = 'none';
+    }
+
+    async function handleEditar(e) {
+      e.preventDefault();
+      const id = document.getElementById('edit-id').value;
+      const nombre = document.getElementById('edit-nombre').value.trim();
+      const username = document.getElementById('edit-username').value.trim();
+      const password = document.getElementById('edit-password').value;
+      const sala = document.getElementById('edit-sala').value;
+      const telefono = document.getElementById('edit-telefono').value.trim();
+      
+      const permissions = {
+        separarAsientos: document.getElementById('edit-perm-separar').checked,
+        confirmarPagos: document.getElementById('edit-perm-pagar').checked,
+        liberarReservas: document.getElementById('edit-perm-liberar').checked,
+        verEstadisticas: document.getElementById('edit-perm-stats').checked
+      };
+
+      const data = { nombre, username, sala, telefono, permisos: permissions };
+      if (password) data.password = password;
+
+      try {
+        const res = await editarAdmin(id, data);
+        if (res.ok) {
+          showToast('Cambios guardados con éxito', 'success');
+          closeEditModal();
+          loadData();
+        } else {
+          showToast(res.error || 'Error al guardar cambios', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexión con el servidor', 'error');
+      }
+    }
+
+    async function handleEliminar(id, nombre) {
+      if (!confirm(`⚠️ ¿Seguro que quieres eliminar la cuenta de "${nombre}"? Esta acción no se puede deshacer.`)) return;
+      
+      try {
+        const res = await eliminarAdmin(id);
+        if (res.ok) {
+          showToast('Cuenta eliminada', 'warn');
+          loadData();
+        } else {
+          showToast(res.error || 'Error al eliminar cuenta', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexión con el servidor', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

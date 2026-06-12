@@ -278,8 +278,8 @@
           <span class="qs-value" id="qs-hijos">0</span>
           <span class="qs-label">Hijos</span>
         </div>
-        <div class="qs-divider"></div>
-        <div class="qs-item">
+        <div class="qs-divider admin-only"></div>
+        <div class="qs-item admin-only">
           <span class="qs-value" id="qs-total-money" style="font-size:1.4rem;">$0</span>
           <span class="qs-label">Total</span>
         </div>
@@ -288,7 +288,7 @@
 
     <!-- MENU CARDS -->
     <div class="menu-grid">
-      <a href="scanner.html" class="menu-card" style="--accent-color: #00e676;">
+      <a href="scanner.html" class="menu-card admin-only" style="--accent-color: #00e676;">
         <span class="mc-arrow">→</span>
         <div class="mc-icon">📱</div>
         <h3>Escáner QR</h3>
@@ -297,10 +297,10 @@
       <a href="generator.html" class="menu-card" style="--accent-color: #f5c518;">
         <span class="mc-arrow">→</span>
         <div class="mc-icon">🎫</div>
-        <h3>Generar Boletos</h3>
-        <p>Crear e imprimir boletos QR para padres e hijos</p>
+        <h3>Reservar Boletos</h3>
+        <p>Separar asientos en el mapa de salas de cine</p>
       </a>
-      <a href="reporte.html" class="menu-card" style="--accent-color: #82aaff;">
+      <a href="reporte.html" class="menu-card admin-only" style="--accent-color: #82aaff;">
         <span class="mc-arrow">→</span>
         <div class="mc-icon">📊</div>
         <h3>Reporte</h3>
@@ -308,9 +308,9 @@
       </a>
       <a href="admin.html" class="menu-card" style="--accent-color: #ff9800;">
         <span class="mc-arrow">→</span>
-        <div class="mc-icon">⚙️</div>
-        <h3>Configuración</h3>
-        <p>Editar precios, salas, cartelera y contraseña</p>
+        <div class="mc-icon" id="config-card-icon">⚙️</div>
+        <h3 id="config-card-title">Configuración</h3>
+        <p id="config-card-desc">Editar precios, salas, cartelera y contraseña</p>
       </a>
     </div>
   </main>
@@ -323,12 +323,42 @@
       document.getElementById('qs-ingresados').textContent = st.escaneados;
       document.getElementById('qs-padres').textContent = st.padres;
       document.getElementById('qs-hijos').textContent = st.hijos;
-      document.getElementById('qs-total-money').textContent = fmt(st.ingresoTotal);
+      if (isLoggedIn()) {
+        const totalMoneyEl = document.getElementById('qs-total-money');
+        if (totalMoneyEl) totalMoneyEl.textContent = fmt(st.ingresoTotal);
+      }
+    }
+
+    function applyUIVisibility() {
+      const loggedIn = isLoggedIn();
+      
+      // Mostrar/ocultar elementos de administrador
+      document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = loggedIn ? '' : 'none';
+      });
+
+      // Actualizar tarjeta de Config / Login
+      const configTitle = document.getElementById('config-card-title');
+      const configDesc = document.getElementById('config-card-desc');
+      const configIcon = document.getElementById('config-card-icon');
+      
+      if (configTitle && configDesc) {
+        if (loggedIn) {
+          configTitle.textContent = 'Configuración';
+          configDesc.textContent = 'Editar precios, salas, cartelera y contraseña';
+          if (configIcon) configIcon.textContent = '⚙️';
+        } else {
+          configTitle.textContent = 'Iniciar Sesión';
+          configDesc.textContent = 'Acceder al panel de administración para gestionar salas e ingresos';
+          if (configIcon) configIcon.textContent = '🔑';
+        }
+      }
     }
 
     // Called by app.js when initial state is loaded from server
     function onStateLoaded() {
       document.getElementById('page-loading').style.display = 'none';
+      applyUIVisibility();
       updateQuickStats();
     }
 
@@ -341,6 +371,10 @@
         if (el) { el.classList.remove('counter-animate'); void el.offsetWidth; el.classList.add('counter-animate'); }
       });
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      applyUIVisibility();
+    });
   </script>
 </body>
 </html>

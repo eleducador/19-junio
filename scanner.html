@@ -277,14 +277,6 @@
           <div class="card">
             <div class="card-title">📊 Contadores <span id="sala-label" style="color:var(--text-muted);font-size:0.7rem;"></span></div>
             <div class="counters-grid">
-              <div class="stat-box gold">
-                <div class="stat-value" id="cnt-padres">0</div>
-                <div class="stat-label">👨 Padres</div>
-              </div>
-              <div class="stat-box blue">
-                <div class="stat-value" id="cnt-hijos">0</div>
-                <div class="stat-label">👧 Hijos</div>
-              </div>
               <div class="stat-box green" style="grid-column:1/-1;">
                 <div class="stat-value" id="cnt-total">0</div>
                 <div class="stat-label">Total Ingresados</div>
@@ -315,6 +307,11 @@
     // ── INIT ──────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
       setActiveNav();
+      
+      if (!isLoggedIn()) {
+        showToast('Debes iniciar sesión para acceder al escáner', 'warn');
+        setTimeout(() => { location.href = 'admin.html'; }, 1500);
+      }
     });
 
     // Called by app.js once state is loaded
@@ -334,13 +331,29 @@
     function renderSalaSelector() {
       const s = getState();
       const el = document.getElementById('sala-selector');
-      el.innerHTML = `<button class="sala-btn active" onclick="setSala(null, this)">Todas las salas</button>`;
-      s.config.salas.forEach(sala => {
-        el.innerHTML += `<button class="sala-btn" onclick="setSala('${sala.id}', this)" style="border-color:transparent;">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sala.color};margin-right:4px;"></span>
-          ${sala.nombre}
-        </button>`;
-      });
+      const mySala = getSalaAdmin(); // null if superadmin, or salaId
+      
+      if (mySala) {
+        const sala = s.config.salas.find(sl => sl.id === mySala);
+        if (sala) {
+          el.innerHTML = `<button class="sala-btn active" style="border-color:var(--gold); color:var(--gold); background:rgba(245,197,24,0.12); cursor:default;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sala.color};margin-right:4px;"></span>
+            ${sala.nombre}
+          </button>`;
+          activeSala = mySala;
+          document.getElementById('sala-label').textContent = `· ${sala.nombre}`;
+        } else {
+          el.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;">Sala asignada no encontrada</p>`;
+        }
+      } else {
+        el.innerHTML = `<button class="sala-btn active" onclick="setSala(null, this)">Todas las salas</button>`;
+        s.config.salas.forEach(sala => {
+          el.innerHTML += `<button class="sala-btn" onclick="setSala('${sala.id}', this)" style="border-color:transparent;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sala.color};margin-right:4px;"></span>
+            ${sala.nombre}
+          </button>`;
+        });
+      }
     }
 
     function setSala(salaId, btn) {
@@ -451,16 +464,12 @@
       const st = getStats();
       if (activeSala) {
         const sst = st.salas[activeSala] || {};
-        document.getElementById('cnt-padres').textContent = sst.escaneadosPadres || 0;
-        document.getElementById('cnt-hijos').textContent = sst.escaneadosHijos || 0;
         document.getElementById('cnt-total').textContent = sst.escaneados || 0;
       } else {
-        document.getElementById('cnt-padres').textContent = st.escaneadosPadres;
-        document.getElementById('cnt-hijos').textContent = st.escaneadosHijos;
         document.getElementById('cnt-total').textContent = st.escaneados;
       }
       // Animate
-      ['cnt-padres','cnt-hijos','cnt-total'].forEach(id => {
+      ['cnt-total'].forEach(id => {
         const el = document.getElementById(id);
         el.classList.remove('counter-animate');
         void el.offsetWidth;
@@ -480,13 +489,11 @@
         const sala = s.config.salas.find(sl => sl.id === sc.sala);
         const pel = s.config.peliculas.find(p => p.id === sc.pelicula);
         const time = new Date(sc.at).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-        const icon = sc.tipo === 'padre' ? '👨' : '👧';
-        const tipoLabel = sc.tipo === 'padre' ? 'Padre' : 'Hijo/a';
         return `
-          <div class="scan-item ${sc.tipo}">
-            <span class="si-icon">${icon}</span>
+          <div class="scan-item">
+            <span class="si-icon">🎫</span>
             <div class="si-info">
-              <div class="si-title">${tipoLabel} · ${sala ? sala.nombre : sc.sala}</div>
+              <div class="si-title">${sc.estudiante || 'Asistente'} · ${sala ? sala.nombre : sc.sala}</div>
               <div class="si-sub">${pel ? pel.titulo : ''}</div>
             </div>
             <span class="si-time">${time}</span>

@@ -109,8 +109,7 @@
       <div class="seat-legend">
         <div class="legend-item"><div class="legend-seat" style="background:var(--bg-card3);border-color:rgba(255,255,255,0.15);"></div>Disponible</div>
         <div class="legend-item"><div class="legend-seat" style="background:rgba(245,197,24,0.4);border-color:var(--gold);"></div>Seleccionado</div>
-        <div class="legend-item"><div class="legend-seat" style="background:rgba(245,197,24,0.22);border-color:var(--gold);"></div>Padre vendido</div>
-        <div class="legend-item"><div class="legend-seat" style="background:rgba(130,170,255,0.22);border-color:#82aaff;"></div>Hijo vendido</div>
+        <div class="legend-item"><div class="legend-seat" style="background:rgba(245,197,24,0.22);border-color:var(--gold);"></div>Vendido</div>
         <div class="legend-item"><div class="legend-seat" style="background:rgba(0,230,118,0.22);border-color:var(--success);"></div>Ya ingresó</div>
       </div>
 
@@ -157,13 +156,14 @@
           <div class="card">
             <div class="card-title">🎫 Nuevo Boleto</div>
 
-            <div class="type-toggle">
-              <button class="type-btn padre active" id="btn-padre" onclick="setTipo('padre')">
-                👨 Padre<br><span class="price-badge" id="badge-padre"></span>
-              </button>
-              <button class="type-btn hijo" id="btn-hijo" onclick="setTipo('hijo')">
-                👧 Hijo/a<br><span class="price-badge" id="badge-hijo"></span>
-              </button>
+            <div class="form-group">
+              <label>Nombre del Estudiante</label>
+              <input type="text" id="gen-estudiante" placeholder="Ej: Juan Pérez">
+            </div>
+
+            <div class="form-group">
+              <label>Grado</label>
+              <input type="text" id="gen-grado" placeholder="Ej: 5to A">
             </div>
 
             <div class="form-group">
@@ -172,7 +172,7 @@
             </div>
 
             <div class="form-group">
-              <label>Fecha</label>
+              <label>Película</label>
               <select id="gen-pelicula"></select>
             </div>
 
@@ -188,11 +188,12 @@
             </div>
 
             <br>
-            <button class="btn btn-primary btn-block btn-lg" onclick="generarBoleto()">✨ Generar Boleto</button>
+            <button class="btn btn-ghost btn-block btn-lg" style="border: 2px dashed var(--gold); color: var(--gold);" onclick="generarBoleto('reservado')">⏱️ Separar Asiento</button>
 
-            <hr class="sep">
+            <!-- END Form -->
+          </div>
+        </div>
 
-            
         <!-- RIGHT: Preview + list -->
         <div>
           <!-- Ticket preview -->
@@ -205,10 +206,11 @@
                   <div class="pt-event">🎬 Al Cine<br>con Papá</div>
                 </div>
                 <div class="pt-body">
-                  <div class="pt-type-badge padre" id="pt-tipo-badge">👨 Padre</div>
+                  <div class="pt-type-badge padre" id="pt-tipo-badge">🎫 Reserva Agrupada</div>
                   <div class="pt-movie" id="pt-movie">—</div>
                   <div class="pt-sala" id="pt-sala">—</div>
                   <div class="pt-seat" id="pt-seat" style="display:none;"></div>
+                  <div id="pt-info-box" style="margin-top:0.5rem; text-align:center; padding:0.5rem; border-radius:8px;"></div>
                   <div id="pt-qr-container"></div>
                 </div>
                 <div class="pt-footer">
@@ -226,17 +228,12 @@
           </div>
 
           <!-- Tickets list -->
-          <div class="card" style="margin-top:1.25rem;">
+          <div class="card admin-only" style="margin-top:1.25rem;">
             <div class="tickets-list-header">
               <div class="card-title" style="margin:0;">📋 Todos los Boletos</div>
               <span class="badge badge-gold" id="total-badge">0</span>
             </div>
             <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
-              <select id="filter-tipo" onchange="renderTicketList()" style="font-size:0.8rem; padding:0.4rem 0.6rem; width:auto;">
-                <option value="">Todos los tipos</option>
-                <option value="padre">Solo Padres</option>
-                <option value="hijo">Solo Hijos</option>
-              </select>
               <select id="filter-sala" onchange="renderTicketList()" style="font-size:0.8rem; padding:0.4rem 0.6rem; width:auto;"></select>
             </div>
             <div class="tickets-scroll" id="tickets-list">
@@ -257,11 +254,29 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       setActiveNav();
+      
+      // Si está logueado pero NO tiene el permiso de separar asientos, redirigir
+      if (isLoggedIn() && !hasPermiso('separarAsientos')) {
+        showToast('No tienes permiso para separar asientos', 'error');
+        setTimeout(() => { location.href = 'admin.html'; }, 1500);
+        return;
+      }
     });
 
     // Called by app.js once state is loaded
-    function onStateLoaded() {
+    async function onStateLoaded() {
       document.getElementById('page-loading').style.display = 'none';
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/contacto-salas`);
+        window.salasContactos = await res.json();
+      } catch(e) { window.salasContactos = {}; }
+      
+      const isAdmin = isLoggedIn() && hasPermiso('separarAsientos');
+      document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = isAdmin ? '' : 'none';
+      });
+
       populateSelectors();
       renderTicketList();
       updatePriceBadges();
@@ -281,24 +296,24 @@
       document.getElementById('badge-hijo').textContent = fmt(s.config.precioHijo);
     }
 
-    function setTipo(tipo) {
-      selectedTipo = tipo;
-      document.getElementById('btn-padre').classList.toggle('active', tipo === 'padre');
-      document.getElementById('btn-hijo').classList.toggle('active', tipo === 'hijo');
-    }
+    // Keep active class toggling
+
 
     function populateSelectors() {
       const s = getState();
-      ['gen-sala', 'bulk-sala', 'filter-sala'].forEach(id => {
+      const mySala = isLoggedIn() ? getSalaAdmin() : null; // Solo restringir si es un admin logueado
+      
+      ['gen-sala', 'filter-sala'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.innerHTML = id === 'filter-sala' ? '<option value="">Todas las salas</option>' : '';
         s.config.salas.forEach(sala => {
-          el.innerHTML += `<option value="${sala.id}">${sala.nombre}</option>`;
+          if (!mySala || sala.id === mySala) {
+            el.innerHTML += `<option value="${sala.id}">${sala.nombre}</option>`;
+          }
         });
       });
       updatePeliculaSelector();
-      updateBulkPeliculaSelector();
     }
 
     function updatePeliculaSelector() {
@@ -311,15 +326,7 @@
         : '<option value="">— Sin películas —</option>';
     }
 
-    function updateBulkPeliculaSelector() {
-      const s = getState();
-      const salaId = document.getElementById('bulk-sala').value;
-      const pels = s.config.peliculas.filter(p => !salaId || p.sala === salaId);
-      const el = document.getElementById('bulk-pelicula');
-      el.innerHTML = pels.length
-        ? pels.map(p => `<option value="${p.id}">${p.titulo} (${p.hora})</option>`).join('')
-        : '<option value="">— Sin películas —</option>';
-    }
+
 
     function onSalaChange() {
       updatePeliculaSelector();
@@ -384,7 +391,7 @@
       const cols = sala.columnas || 10;
 
       document.getElementById('seat-modal-sub').textContent =
-        `${sala.nombre} · ${filas} filas × ${cols} asientos · Tipo: ${selectedTipo === 'padre' ? '👨 Padre' : '👧 Hijo/a'}`;
+        `${sala.nombre} · ${filas} filas × ${cols} asientos`;
 
       const mapEl = document.getElementById('seat-modal-map');
       mapEl.innerHTML = '';
@@ -442,12 +449,9 @@
             if (boleto.escaneado) {
               seat.classList.add('occupied');
               seat.title += ' · Ingresó';
-            } else if (boleto.tipo === 'padre') {
-              seat.classList.add('sold-padre');
-              seat.title += ' · Padre (vendido)';
             } else {
-              seat.classList.add('sold-hijo');
-              seat.title += ' · Hijo (vendido)';
+              seat.classList.add('sold-padre');
+              seat.title += ' · Vendido';
             }
           } else {
             seat.addEventListener('click', () => selectSeatInModal(f, c, seat));
@@ -492,138 +496,100 @@
     }
 
     // ── TICKET GENERATION ─────────────────────────
-    async function generarBoleto() {
+    async function generarBoleto(estado = 'pagado') {
       const sala = document.getElementById('gen-sala').value;
       const pelicula = document.getElementById('gen-pelicula').value;
+      const estudiante = document.getElementById('gen-estudiante').value.trim();
+      const grado = document.getElementById('gen-grado').value.trim();
+      
       if (!sala) { showToast('Selecciona una sala', 'warn'); return; }
       if (!pelicula) { showToast('❌ Selecciona una película. Si no hay, ve a Config y agrega una a esta sala.', 'error'); return; }
+      if (!estudiante) { showToast('Ingresa el nombre del estudiante', 'warn'); return; }
+      if (selectedAsientos.length === 0) { showToast('Selecciona al menos un asiento', 'warn'); return; }
 
-      // If no seats chosen, generate 1 ticket without assigned seat
-      if (selectedAsientos.length === 0) {
-        const id = await crearBoleto(selectedTipo, sala, pelicula, null);
-        if (!id) { showToast('Error al crear boleto', 'error'); return; }
-        lastBoletoId = id;
-        showTicketPreview(id);
+      showToast(`⏳ Procesando reserva de ${selectedAsientos.length} asiento(s)...`, 'info', 2000);
+
+      const res = await crearReserva(estudiante, grado, sala, pelicula, selectedAsientos, estado);
+      if (res.ok) {
+        lastBoletoId = res.compraId;
+        showTicketPreview(res.compraId);
         renderTicketList();
         updateSeatCountsInfo();
-        showToast(`Boleto ${selectedTipo === 'padre' ? '👨 padre' : '👧 hijo'} generado`, 'success');
-        return;
-      }
-
-      // Validate all selected seats are still available
-      const sold = getSoldSeats(sala);
-      const takenSeats = selectedAsientos.filter(a => sold.has(`${a.fila}-${a.col}`));
-      if (takenSeats.length > 0) {
-        const labels = takenSeats.map(a => `${filaLabel(a.fila)}${a.col + 1}`).join(', ');
-        showToast(`⚠️ Asiento(s) ya vendido(s): ${labels}. Vuelve a seleccionar.`, 'error', 5000);
         clearSeat();
-        return;
+        document.getElementById('gen-estudiante').value = '';
+        document.getElementById('gen-grado').value = '';
+        showToast(`✅ Reserva completada exitosamente`, 'success', 4000);
+      } else {
+        showToast(res.error || 'Error al crear reserva', 'error');
       }
-
-      // Create one ticket per selected seat
-      const tipoLabel = selectedTipo === 'padre' ? '👨 padre' : '👧 hijo';
-      showToast(`⏳ Generando ${selectedAsientos.length} boleto(s)...`, 'info', 2000);
-
-      let lastId = null;
-      let creados = 0;
-      for (const asiento of selectedAsientos) {
-        const id = await crearBoleto(selectedTipo, sala, pelicula, asiento);
-        if (id) { lastId = id; creados++; }
-      }
-
-      if (lastId) {
-        lastBoletoId = lastId;
-        showTicketPreview(lastId);
-      }
-      renderTicketList();
-      updateSeatCountsInfo();
-      clearSeat();
-      showToast(`✅ ${creados} boleto(s) ${tipoLabel} generado(s)`, 'success', 4000);
     }
 
-    async function generarLote() {
-      const nPadres = parseInt(document.getElementById('bulk-padres').value) || 0;
-      const nHijos = parseInt(document.getElementById('bulk-hijos').value) || 0;
-      const sala = document.getElementById('bulk-sala').value;
-      const pelicula = document.getElementById('bulk-pelicula').value;
-      if (!sala) { showToast('Selecciona una sala para el lote', 'warn'); return; }
-      if (nPadres + nHijos === 0) { showToast('Ingresa al menos 1 boleto', 'warn'); return; }
 
-      showToast('Generando boletos...', 'info', 2000);
-
-      // Use batch API: one request per type
-      let created = 0;
-      let lastId = null;
-
-      if (nPadres > 0) {
-        const bs = await crearBoletos('padre', sala, pelicula, nPadres);
-        created += bs.length;
-        if (bs.length) lastId = bs[bs.length - 1].id;
-      }
-      if (nHijos > 0) {
-        const bs = await crearBoletos('hijo', sala, pelicula, nHijos);
-        created += bs.length;
-        if (bs.length) lastId = bs[bs.length - 1].id;
-      }
-
-      if (lastId) { lastBoletoId = lastId; showTicketPreview(lastId); }
-      renderTicketList();
-      updateSeatCountsInfo();
-      showToast(`✅ ${created} boletos generados con asiento`, 'success', 4000);
-    }
 
     // ── TICKET PREVIEW ────────────────────────────
-    function showTicketPreview(boletoId) {
+    function showTicketPreview(compraId) {
       const s = getState();
-      const b = s.boletos[boletoId];
-      if (!b) return;
+      const boletosGroup = Object.values(s.boletos).filter(b => b.compraId === compraId);
+      if (!boletosGroup.length) return;
+      
+      const b = boletosGroup[0]; // representative
       const sala = s.config.salas.find(sl => sl.id === b.sala);
       const pel = s.config.peliculas.find(p => p.id === b.pelicula);
-      const precio = b.tipo === 'padre' ? s.config.precioPadre : s.config.precioHijo;
+      const precioTotal = boletosGroup.length * (s.config.precioGeneral || 12000);
 
-      document.getElementById('pt-tipo-badge').className = `pt-type-badge ${b.tipo}`;
-      document.getElementById('pt-tipo-badge').textContent = b.tipo === 'padre' ? '👨 Padre' : '👧 Hijo/a';
       document.getElementById('pt-movie').textContent = pel ? pel.titulo : '—';
       document.getElementById('pt-sala').textContent = `${sala ? sala.nombre : '—'} · ${pel ? pel.hora : ''}`;
 
       const seatEl = document.getElementById('pt-seat');
-      if (b.asiento) {
-        seatEl.textContent = `🪑 Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}`;
+      const labels = boletosGroup.map(bol => bol.asiento ? `${filaLabel(bol.asiento.fila)}${bol.asiento.col + 1}` : '').filter(Boolean);
+      if (labels.length) {
+        seatEl.textContent = `🪑 Asientos: ${labels.join(', ')}`;
         seatEl.style.display = 'block';
       } else {
         seatEl.style.display = 'none';
       }
 
-      document.getElementById('pt-price').textContent = fmt(precio);
-      document.getElementById('pt-id').textContent = `ID: ${boletoId}`;
+      const infoBox = document.getElementById('pt-info-box');
+      infoBox.innerHTML = `<strong>Estudiante:</strong> ${b.estudiante || '—'}<br><strong>Grado:</strong> ${b.grado || '—'}`;
+      infoBox.style.background = '#f1f5f9';
+      infoBox.style.color = '#334155';
+      infoBox.style.border = 'none';
+
+      if (b.estado === 'reservado') {
+        infoBox.style.background = '#fffbeb';
+        infoBox.style.color = '#b45309';
+        infoBox.style.border = '1px solid #fcd34d';
+        infoBox.innerHTML += `<br><br><strong>⚠️ Reserva Pendiente de Pago</strong><br><span style="font-size:0.8rem;">Acércate con el administrador para pagar.</span>`;
+      } else if (b.escaneado) {
+        infoBox.style.background = '#f0fdf4';
+        infoBox.style.color = '#166534';
+        infoBox.innerHTML += `<br><br><strong>✅ Utilizado</strong>`;
+      }
+
+      document.getElementById('pt-price').textContent = fmt(precioTotal);
+      document.getElementById('pt-id').textContent = `ID: ${compraId}`;
 
       const container = document.getElementById('pt-qr-container');
-
-      // Mostrar advertencia si no está pagado
-      let warningEl = document.getElementById('pt-pago-warning');
-      if (!warningEl) {
-        warningEl = document.createElement('div');
-        warningEl.id = 'pt-pago-warning';
-        warningEl.style.cssText = 'color: #e53935; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.5rem; text-align: center;';
-        container.parentNode.insertBefore(warningEl, container);
+      if (b.estado === 'reservado') {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem; padding:1rem; border:1px dashed #ccc; border-radius:8px; margin-top:1rem;">El código QR se generará al confirmar el pago.</div>';
+      } else {
+        container.innerHTML = '<div id="qr-render"></div>';
+        try {
+          if (qrInstance) { qrInstance.clear(); qrInstance = null; }
+          const qrPayload = JSON.stringify({ v:1, app:'alcinepapa', ids: boletosGroup.map(bol => bol.id) });
+          qrInstance = new QRCode(document.getElementById('qr-render'), {
+            text: qrPayload,
+            width: 150, height: 150,
+            colorDark: '#111', colorLight: '#fff',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } catch {}
       }
-      warningEl.style.display = b.pagado ? 'none' : 'block';
-      warningEl.textContent = '⚠️ PAGO PENDIENTE';
-      container.innerHTML = '<div id="qr-render"></div>';
-      try {
-        if (qrInstance) { qrInstance.clear(); qrInstance = null; }
-        qrInstance = new QRCode(document.getElementById('qr-render'), {
-          text: buildQRPayload(boletoId),
-          width: 150, height: 150,
-          colorDark: '#111', colorLight: '#fff',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } catch {}
-      // Enable action buttons for this ticket
+      
       document.getElementById('btn-whatsapp').disabled = false;
-      document.getElementById('btn-whatsapp').onclick = () => compartirWhatsAppId(boletoId);
+      document.getElementById('btn-whatsapp').onclick = () => compartirWhatsAppId(compraId);
       document.getElementById('btn-pdf').disabled = false;
-      document.getElementById('btn-pdf').onclick = () => descargarPDF(boletoId);
+      document.getElementById('btn-pdf').onclick = () => descargarPDF(compraId);
     }
 
     // ── PDF EXPORT ────────────────────────────────
@@ -671,9 +637,10 @@
 
         // File name based on ticket ID
         const s = getState();
-        const b = s.boletos[id];
-        const tipo = b ? b.tipo : 'boleto';
-        pdf.save(`boleto-${tipo}-${id.slice(-6)}.pdf`);
+        const boletosGroup = Object.values(s.boletos).filter(b => b.compraId === id);
+        const rep = boletosGroup[0] || {};
+        const nombre = (rep.estudiante || 'Reserva').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        pdf.save(`reserva-${nombre}-${id.slice(-6)}.pdf`);
 
         showToast('✅ PDF descargado correctamente', 'success');
       } catch (e) {
@@ -686,30 +653,53 @@
     }
 
     // ── WHATSAPP SHARE ────────────────────────────
-    function buildWhatsAppText(boletoId) {
+    function buildWhatsAppText(compraId) {
       const s = getState();
-      const b = s.boletos[boletoId];
-      if (!b) return null;
+      const boletosGroup = Object.values(s.boletos).filter(b => b.compraId === compraId);
+      if (!boletosGroup.length) return '';
+      const b = boletosGroup[0];
+      
       const sala = s.config.salas.find(sl => sl.id === b.sala);
       const pel = s.config.peliculas.find(p => p.id === b.pelicula);
-      const precio = b.tipo === 'padre' ? s.config.precioPadre : s.config.precioHijo;
-      const tipoLabel = b.tipo === 'padre' ? '👨 Padre' : '👧 Hijo/a';
-      const seatStr = b.asiento ? `🪑 Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento asignado';
-      const precioStr = new Intl.NumberFormat('es-CO', { style: 'currency', currency: s.config.moneda || 'COP', maximumFractionDigits: 0 }).format(precio);
+      const seatStr = boletosGroup.map(bol => bol.asiento ? `${filaLabel(bol.asiento.fila)}${bol.asiento.col + 1}` : '').filter(Boolean).join(', ');
+      const precioTotal = boletosGroup.length * (s.config.precioGeneral || 12000);
+      const precioStr = fmt(precioTotal);
+      
+      if (b.estado === 'reservado') {
+        return [
+          `🎬 *AL CINE CON PAPÁ*`,
+          `_Colegio El Educador_`,
+          ``,
+          `*Estudiante:* ${b.estudiante || '—'}`,
+          `*Grado:* ${b.grado || '—'}`,
+          `*Película:* ${pel ? pel.titulo : '—'}`,
+          `*Sala:* ${sala ? sala.nombre : '—'}`,
+          `*Hora:* ${pel ? pel.hora : '—'}`,
+          `*Asientos:* ${seatStr}`,
+          `*Precio:* ${precioStr}`,
+          ``,
+          `⚠️ *PENDIENTE DE PAGO*`,
+          `Tu asiento ha sido separado. Envía este mensaje para gestionar el pago.`,
+          `⏱️ _Esta reserva se cancelará automáticamente en 1 hora si no es confirmada._`,
+          ``,
+          `🎫 *ID de Reserva:* \`${compraId}\``
+        ].join('\n');
+      }
 
       return [
         `🎬 *AL CINE CON PAPÁ*`,
         `_Colegio El Educador_`,
         ``,
-        `*Tipo:* ${tipoLabel}`,
+        `*Estudiante:* ${b.estudiante || '—'}`,
+        `*Grado:* ${b.grado || '—'}`,
         `*Película:* ${pel ? pel.titulo : '—'}`,
         `*Sala:* ${sala ? sala.nombre : '—'}`,
         `*Hora:* ${pel ? pel.hora : '—'}`,
-        `*Asiento:* ${seatStr}`,
+        `*Asientos:* ${seatStr}`,
         `*Precio:* ${precioStr}`,
         ``,
-        `🎫 *ID del boleto:*`,
-        `\`${boletoId}\``,
+        `🎫 *ID de Compra:*`,
+        `\`${compraId}\``,
         ``,
         `✅ Presenta este mensaje el día del evento para ingresar.`,
       ].join('\n');
@@ -720,71 +710,120 @@
       compartirWhatsAppId(lastBoletoId);
     }
 
-    function compartirWhatsAppId(boletoId) {
-      const texto = buildWhatsAppText(boletoId);
+    function compartirWhatsAppId(compraId) {
+      const texto = buildWhatsAppText(compraId);
       if (!texto) { showToast('No se pudo generar el mensaje', 'error'); return; }
-      const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+      
+      const s = getState();
+      const b = Object.values(s.boletos).find(bol => bol.compraId === compraId);
+      let phonePath = '';
+      
+      // Si está reservado, dirigir al teléfono del administrador de la sala
+      if (b && b.estado === 'reservado' && window.salasContactos && window.salasContactos[b.sala]) {
+        // Limpiar el número de espacios o signos +
+        const tel = window.salasContactos[b.sala].replace(/[^0-9]/g, '');
+        if (tel.length >= 10) phonePath = tel;
+      }
+      
+      const url = `https://wa.me/${phonePath}?text=${encodeURIComponent(texto)}`;
       window.open(url, '_blank');
-      showTicketPreview(boletoId);
+      showTicketPreview(compraId);
     }
 
     // ── TICKET LIST ───────────────────────────────
     function renderTicketList() {
       const s = getState();
-      const boletos = Object.values(s.boletos);
-      const filterTipo = document.getElementById('filter-tipo').value;
       const filterSala = document.getElementById('filter-sala').value;
-      const filtered = boletos.filter(b =>
-        (!filterTipo || b.tipo === filterTipo) &&
-        (!filterSala || b.sala === filterSala)
-      ).reverse();
+      
+      // Group boletos by compraId
+      const grouped = {};
+      Object.values(s.boletos).forEach(b => {
+        if (!grouped[b.compraId]) grouped[b.compraId] = [];
+        grouped[b.compraId].push(b);
+      });
+      
+      const compraIds = Object.keys(grouped);
+      const filtered = compraIds.map(cid => grouped[cid]).filter(group => {
+        const b = group[0];
+        return (!filterSala || b.sala === filterSala);
+      }).reverse(); // Most recent first
 
-      document.getElementById('total-badge').textContent = `${boletos.length}`;
+      document.getElementById('total-badge').textContent = `${compraIds.length}`;
 
       const el = document.getElementById('tickets-list');
       if (!filtered.length) {
-        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1.5rem;">No hay boletos que coincidan</p>';
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1.5rem;">No hay reservaciones que coincidan</p>';
         return;
       }
 
-      el.innerHTML = filtered.slice(0, 100).map(b => {
+      el.innerHTML = filtered.slice(0, 100).map(group => {
+        const b = group[0];
         const sala = s.config.salas.find(sl => sl.id === b.sala);
         const pel = s.config.peliculas.find(p => p.id === b.pelicula);
-        const icon = b.tipo === 'padre' ? '👨' : '👧';
-        const tipoLabel = b.tipo === 'padre' ? 'Padre' : 'Hijo/a';
-        const badgeClass = b.tipo === 'padre' ? 'badge-gold' : 'badge-blue';
-        let estado;
-        if (b.escaneado) {
-          estado = '<span class="badge badge-green">✅ Ingresó</span>';
-        } else if (!b.pagado) {
-          estado = '<span class="badge" style="background:#ff9800;color:#fff;border-color:#ff9800;">⚠️ Falta Pago</span>';
-        } else {
-          estado = '<span class="badge badge-gray">⏳ Pendiente de ingreso</span>';
-        }
-        const seatStr = b.asiento ? `🪑 Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento asignado';
+        const icon = '🎫';
+        let estadoBadge = b.escaneado ? '<span class="badge badge-green">✅ Ingresó</span>' : '<span class="badge badge-gray">💰 Pagado</span>';
+        if (b.estado === 'reservado') estadoBadge = '<span class="badge badge-gold" style="background:rgba(245,197,24,0.1);color:#f5c518;border:1px solid #f5c518;">⏱️ Reservado</span>';
+        
+        const seatStr = group.map(bol => bol.asiento ? `${filaLabel(bol.asiento.fila)}${bol.asiento.col + 1}` : '').filter(Boolean).join(', ');
+        
         return `
-          <div class="ticket-card" onclick="showTicketPreview('${b.id}')">
+          <div class="ticket-card" onclick="showTicketPreview('${b.compraId}')">
             <span class="tc-icon">${icon}</span>
             <div class="tc-info">
-              <div class="tc-id">${b.id}</div>
-              <div class="tc-title">${tipoLabel} · ${sala ? sala.nombre : b.sala}</div>
+              <div class="tc-id">${b.compraId}</div>
+              <div class="tc-title">${b.estudiante || 'Estudiante'} ${b.grado ? '(' + b.grado + ')' : ''} · ${sala ? sala.nombre : b.sala}</div>
               <div class="tc-sub">${pel ? pel.titulo : '—'}</div>
-              <div class="tc-seat">${seatStr}</div>
+              <div class="tc-seat">${group.length} Asientos: ${seatStr}</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end;">
-              <span class="badge ${badgeClass}">${tipoLabel}</span>
-              ${estado}
+              ${estadoBadge}
               <div style="display:flex;gap:0.3rem;">
-                <button onclick="event.stopPropagation(); showTicketPreview('${b.id}'); setTimeout(()=>descargarPDF('${b.id}'),200);" title="Descargar PDF"
+                <button onclick="event.stopPropagation(); showTicketPreview('${b.compraId}'); setTimeout(()=>descargarPDF('${b.compraId}'),200);" title="Descargar PDF"
                   style="background:#e53935;color:#fff;border:none;border-radius:8px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;font-weight:700;">📄 PDF</button>
-                <button onclick="event.stopPropagation(); compartirWhatsAppId('${b.id}')" title="Compartir por WhatsApp"
+                <button onclick="event.stopPropagation(); compartirWhatsAppId('${b.compraId}')" title="Compartir por WhatsApp"
                   style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;font-weight:700;">📲 WA</button>
+                ${b.estado === 'reservado' && hasPermiso('confirmarPagos') ? `<button onclick="event.stopPropagation(); window.handlePagar('${b.compraId}')" title="Confirmar Pago" style="background:#00e676;color:#000;border:none;border-radius:8px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;font-weight:700;">💰 Pagar</button>` : ''}
+                ${b.estado === 'reservado' && hasPermiso('liberarReservas') ? `<button onclick="event.stopPropagation(); window.handleLiberar('${b.compraId}')" title="Liberar Reserva" style="background:#ff1744;color:#fff;border:none;border-radius:8px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;font-weight:700;">🗑️ Liberar</button>` : ''}
               </div>
             </div>
           </div>
         `;
       }).join('') + (filtered.length > 100 ? `<p style="text-align:center;color:var(--text-muted);font-size:.8rem;padding:.75rem;">... y ${filtered.length - 100} más</p>` : '');
     }
+
+    window.handlePagar = async function(compraId) {
+      if (!confirm('¿Confirmar el pago de esta reserva?')) return;
+      const s = getState();
+      const boletosGroup = Object.values(s.boletos).filter(b => b.compraId === compraId);
+      let success = true;
+      for (const b of boletosGroup) {
+        if (!await pagarBoleto(b.id)) success = false;
+      }
+      if (success) {
+        showToast('Pago confirmado con éxito', 'success');
+        renderTicketList();
+        if (lastBoletoId === compraId) showTicketPreview(compraId);
+      } else {
+        showToast('Error al confirmar pago. Revisa permisos o conexión.', 'error');
+      }
+    };
+
+    window.handleLiberar = async function(compraId) {
+      if (!confirm('⚠️ ¿Seguro que quieres liberar esta reserva? Se perderán los asientos.')) return;
+      const s = getState();
+      const boletosGroup = Object.values(s.boletos).filter(b => b.compraId === compraId);
+      let success = true;
+      for (const b of boletosGroup) {
+        if (!await liberarBoleto(b.id)) success = false;
+      }
+      if (success) {
+        showToast('Reserva liberada', 'warn');
+        if (lastBoletoId === compraId) { document.getElementById('preview-card').style.opacity = '0.5'; }
+        renderTicketList();
+      } else {
+        showToast('Error al liberar reserva. Revisa permisos o conexión.', 'error');
+      }
+    };
   </script>
 
   <style>

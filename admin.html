@@ -99,38 +99,39 @@
     <section id="login-section" class="login-wrap">
       <div class="login-card">
         <span class="brand-logo">⚙️</span>
-        <h1>Configuración</h1>
-        <p class="subtitle">Ingresa la contraseña para acceder al panel de administración</p>
+        <h1>Panel de Admin</h1>
+        <p class="subtitle">Ingresa con tu usuario y contraseña asignados</p>
         <div class="form-group">
-          <input type="password" id="login-pass" placeholder="Contraseña..." autofocus>
+          <input type="text" id="login-user" placeholder="Usuario..." autofocus autocomplete="username">
+        </div>
+        <div class="form-group">
+          <input type="password" id="login-pass" placeholder="Contraseña..." autocomplete="current-password">
         </div>
         <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()">Ingresar</button>
-        <p style="margin-top:1rem; font-size:0.75rem; color:var(--text-dim);">Contraseña por defecto: educador2024</p>
       </div>
     </section>
 
     <!-- ── ADMIN PANEL ── -->
     <section id="admin-section">
       <div class="container">
-        <div class="page-header">
-          <div class="eyebrow">⚙️ Panel de Administración</div>
-          <h1>Configuración</h1>
-          <p>Edita precios, películas, salas y contraseña del sistema</p>
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+          <div>
+            <div class="eyebrow">⚙️ Panel de Administración</div>
+            <h1 id="admin-title">Panel</h1>
+            <p id="admin-subtitle"></p>
+          </div>
+          <button class="btn btn-ghost" onclick="doLogout()" style="align-self:center;">🚶 Cerrar Sesión</button>
         </div>
 
         <div class="grid-2">
 
           <!-- ── PRECIOS ── -->
-          <div class="card">
+          <div class="card superadmin-only">
             <div class="card-title">💰 Precios de Boletos</div>
-            <div class="price-row">
+            <div class="price-row" style="grid-template-columns: 1fr;">
               <div class="form-group">
-                <label>Precio Padre</label>
-                <input type="number" id="precio-padre" min="0" step="500" placeholder="15000">
-              </div>
-              <div class="form-group">
-                <label>Precio Hijo</label>
-                <input type="number" id="precio-hijo" min="0" step="500" placeholder="8000">
+                <label>Precio General por Asiento</label>
+                <input type="number" id="precio-general" min="0" step="500" placeholder="12000">
               </div>
             </div>
             <div class="form-group">
@@ -145,24 +146,14 @@
               </select>
             </div>
             <div class="price-preview">
-              <div><div class="pp-label">👨 Padre</div><div class="pp-val" id="prev-padre">$0</div></div>
-              <div><div class="pp-label">👧 Hijo/a</div><div class="pp-val" id="prev-hijo">$0</div></div>
+              <div><div class="pp-label">🎫 Asiento</div><div class="pp-val" id="prev-general">$0</div></div>
             </div>
             <br>
             <button class="btn btn-primary btn-block" onclick="guardarPrecios()">💾 Guardar Precios</button>
           </div>
 
-          <!-- ── PAGOS PENDIENTES ── -->
-          <div class="card" style="grid-column: 1 / -1;">
-            <div class="card-title">💳 Validación de Pagos</div>
-            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
-              Boletos generados que aún no han sido pagados. (No podrán entrar a la sala hasta que los apruebes).
-            </p>
-            <div id="pagos-list"></div>
-          </div>
-
           <!-- ── SALAS ── -->
-          <div class="card">
+          <div class="card superadmin-only">
             <div class="card-title">🎭 Salas de Cine</div>
             <div id="salas-list"></div>
             <hr class="sep">
@@ -190,7 +181,7 @@
           </div>
 
           <!-- ── PELÍCULAS ── -->
-          <div class="card" style="grid-column: 1 / -1;">
+          <div class="card superadmin-only" style="grid-column: 1 / -1;">
             <div class="card-title">🎬 Cartelera del Día</div>
             <div id="peliculas-list"></div>
             <hr class="sep">
@@ -209,13 +200,32 @@
                   <input type="text" id="new-pel-hora" placeholder="10:00">
                 </div>
                 <button class="btn btn-ghost" onclick="agregarPelicula()" style="padding:0.7rem 1rem; flex-shrink:0; align-self:flex-end;">➕ Agregar</button>
-              </div>
             </div>
           </div>
 
+          <!-- ── GESTIÓN DE ADMINISTRADORES ── -->
+          <div class="card superadmin-only" style="grid-column: 1 / -1;">
+            <div class="card-title">👥 Administradores de Salas</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+              Crea y gestiona los permisos de los usuarios que controlan el acceso a cada sala.
+            </p>
+            <a href="managers.html" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:0.5rem; text-decoration:none; width:fit-content; padding:0.75rem 1.5rem; border-radius:8px;">
+              👥 Configurar Cuentas de Admins
+            </a>
+          </div>
+
+          <!-- ── RESERVAS ── -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">⏱️ Gestión de Asientos Reservados</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+              Boletos que han sido separados pero aún no han sido pagados.
+            </p>
+            <div id="reservas-list"></div>
+          </div>
+
           <!-- ── CONTRASEÑA ── -->
-          <div class="card">
-            <div class="card-title">🔐 Cambiar Contraseña</div>
+          <div class="card superadmin-only">
+            <div class="card-title">🔐 Cambiar Contraseña del Super Admin</div>
             <div class="form-group">
               <label>Nueva Contraseña</label>
               <input type="password" id="new-pass1" placeholder="Nueva contraseña">
@@ -228,7 +238,7 @@
           </div>
 
           <!-- ── DANGER ZONE ── -->
-          <div class="card" style="border-color: rgba(229,9,20,0.25);">
+          <div class="card superadmin-only" style="border-color: rgba(229,9,20,0.25);">
             <div class="card-title" style="color: var(--error);">⚠️ Zona de Peligro</div>
             <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
               Estas acciones son irreversibles. Úsalas con precaución.
@@ -247,29 +257,41 @@
   <script>
     // ── AUTH ────────────────────────────────────
     async function doLogin() {
+      const user = document.getElementById('login-user').value.trim();
       const pass = document.getElementById('login-pass').value;
-      const ok = await login(pass);
-      if (ok) {
+      if (!user || !pass) { showToast('Ingresa usuario y contraseña', 'warn'); return; }
+      
+      const result = await loginAdmin(user, pass);
+      if (result.ok) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('admin-section').style.display = 'block';
         renderAdmin();
       } else {
-        showToast('Contraseña incorrecta', 'error');
+        showToast(result.error || 'Credenciales incorrectas', 'error');
         document.getElementById('login-pass').value = '';
-        document.getElementById('login-pass').focus();
       }
+    }
+
+    async function doLogout() {
+      await logoutAdmin();
+      document.getElementById('admin-section').style.display = 'none';
+      document.getElementById('login-section').style.display = 'block';
     }
 
     document.getElementById('login-pass')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') doLogin();
     });
+    document.getElementById('login-user')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('login-pass').focus();
+    });
 
-    // ── CHECK SESSION ────────────────────────────
+    // ── CHECK SESSION ──────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
       setActiveNav();
       if (isLoggedIn()) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('admin-section').style.display = 'block';
+        renderAdmin();
       }
     });
 
@@ -281,83 +303,41 @@
       if (isLoggedIn()) renderAdmin();
     }
 
-    // ── RENDER ───────────────────────────────────
+    // ── RENDER ──────────────────────────────────
     function renderAdmin() {
       const s = getState();
       if (!s.config) return;
+      const admin = getCurrentAdmin();
+      const isSuperAdmin = admin?.rol === 'superadmin';
+      const salaProp = getSalaAdmin();
+
+      // Update header
+      document.getElementById('admin-title').textContent = isSuperAdmin ? 'Super Administrador' : `Sala: ${(s.config.salas.find(sl => sl.id === salaProp)?.nombre || salaProp || '—')}`;
+      document.getElementById('admin-subtitle').textContent = isSuperAdmin ? 'Control total del sistema' : `Bienvenido, ${admin?.nombre || ''}. Gestiona las reservas de tu sala.`;
+
+      // Show/hide config sections for superadmin only
+      const configSections = document.querySelectorAll('.superadmin-only');
+      configSections.forEach(el => el.style.display = isSuperAdmin ? '' : 'none');
+
       // Precios
-      document.getElementById('precio-padre').value = s.config.precioPadre;
-      document.getElementById('precio-hijo').value = s.config.precioHijo;
-      document.getElementById('moneda').value = s.config.moneda;
-      updatePricePreviews();
-
-      // Salas
-      renderSalas();
-      // Peliculas
-      renderPeliculas();
-      // Pagos
-      renderPagos();
-    }
-
-    function renderPagos() {
-      const s = getState();
-      const el = document.getElementById('pagos-list');
-      const pendientes = Object.values(s.boletos).filter(b => b.pagado === false).reverse();
-
-      if (!pendientes.length) {
-        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1rem;">No hay boletos pendientes de pago.</p>';
-        return;
+      if (isSuperAdmin) {
+        document.getElementById('precio-general').value = s.config.precioGeneral || 12000;
+        document.getElementById('moneda').value = s.config.moneda;
+        updatePricePreviews();
+        renderSalas();
+        renderPeliculas();
       }
-
-      el.innerHTML = pendientes.map(b => {
-        const sala = s.config.salas.find(sl => sl.id === b.sala);
-        const pel = s.config.peliculas.find(p => p.id === b.pelicula);
-        const seatStr = b.asiento ? `Fila ${String.fromCharCode(65 + b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento';
-        const tipoLabel = b.tipo === 'padre' ? '👨 Padre' : '👧 Hijo/a';
-        return `
-          <div class="sala-item" style="justify-content: space-between;">
-            <div class="item-info">
-              <div class="item-title">${tipoLabel} · ${b.id}</div>
-              <div class="item-sub">${pel ? pel.titulo : ''} · ${sala ? sala.nombre : ''} · ${seatStr}</div>
-            </div>
-            <div style="display:flex; gap:0.5rem;">
-              <button class="btn" onclick="liberarAsientoUi('${b.id}')" style="padding: 0.4rem 1rem; font-size: 0.8rem; background: transparent; border: 1px solid var(--error); color: var(--error);">Liberar Asiento ❌</button>
-              <button class="btn btn-primary" onclick="aprobarPagoUi('${b.id}')" style="padding: 0.4rem 1rem; font-size: 0.8rem;">Aprobar Pago ✅</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function aprobarPagoUi(id) {
-      const ok = await validarPago(id);
-      if (ok) {
-        showToast('Pago aprobado correctamente', 'success');
-        renderAdmin();
-      } else {
-        showToast('Error al aprobar el pago', 'error');
-      }
-    }
-
-    async function liberarAsientoUi(id) {
-      const ok = await liberarBoleto(id);
-      if (ok) {
-        showToast('Asiento liberado correctamente', 'warn');
-        renderAdmin();
-      }
+      renderReservas();
     }
 
     function updatePricePreviews() {
-      const pp = parseFloat(document.getElementById('precio-padre').value) || 0;
-      const ph = parseFloat(document.getElementById('precio-hijo').value) || 0;
+      const pg = parseFloat(document.getElementById('precio-general').value) || 0;
       const mon = document.getElementById('moneda').value || 'COP';
       const fmtLocal = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: mon, maximumFractionDigits: 0 }).format(n);
-      document.getElementById('prev-padre').textContent = fmtLocal(pp);
-      document.getElementById('prev-hijo').textContent = fmtLocal(ph);
+      document.getElementById('prev-general').textContent = fmtLocal(pg);
     }
 
-    document.getElementById('precio-padre')?.addEventListener('input', updatePricePreviews);
-    document.getElementById('precio-hijo')?.addEventListener('input', updatePricePreviews);
+    document.getElementById('precio-general')?.addEventListener('input', updatePricePreviews);
     document.getElementById('moneda')?.addEventListener('change', updatePricePreviews);
 
     function renderSalas() {
@@ -416,15 +396,78 @@
     }
 
     // ── ACTIONS ──────────────────────────────────
-    async function guardarPrecios() {
-      const pp = parseFloat(document.getElementById('precio-padre').value);
-      const ph = parseFloat(document.getElementById('precio-hijo').value);
-      const mon = document.getElementById('moneda').value;
-      if (isNaN(pp) || isNaN(ph) || pp < 0 || ph < 0) {
-        showToast('Ingresa precios válidos', 'error'); return;
+    async function accionPagar(id) {
+      if (!confirm('¿Confirmar que se recibió el pago por este asiento?')) return;
+      const ok = await pagarBoleto(id);
+      if (ok) {
+        showToast('Boleto pagado ✅', 'success');
+        renderAdmin();
+      } else {
+        showToast('Error al procesar el pago', 'error');
       }
-      const ok = await saveConfig({ precioPadre: pp, precioHijo: ph, moneda: mon });
-      if (ok) showToast('✅ Precios guardados', 'success');
+    }
+
+    async function accionLiberar(id) {
+      if (!confirm('¿Seguro que quieres liberar este asiento? El boleto se eliminará y el asiento quedará disponible para la venta.')) return;
+      const ok = await liberarBoleto(id);
+      if (ok) {
+        showToast('Asiento liberado correctamente', 'success');
+        renderAdmin();
+      } else {
+        showToast('Error al liberar asiento', 'error');
+      }
+    }
+
+    function renderReservas() {
+      const s = getState();
+      const el = document.getElementById('reservas-list');
+      const admin = getCurrentAdmin();
+      const salaProp = getSalaAdmin(); // null = ve todo (superadmin)
+      
+      let reservados = Object.values(s.boletos || {}).filter(b => b.estado === 'reservado');
+      if (salaProp) reservados = reservados.filter(b => b.sala === salaProp);
+      
+      if (!reservados.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1.5rem;">No hay asientos separados pendientes de pago.</p>';
+        return;
+      }
+
+      const puedeConfirmar = hasPermiso('confirmarPagos');
+      const puedeLiberdar = hasPermiso('liberarReservas');
+
+      el.innerHTML = reservados.map(b => {
+        const sala = s.config.salas.find(sl => sl.id === b.sala);
+        const pel = s.config.peliculas.find(p => p.id === b.pelicula);
+        const icon = '🎫';
+        const seatStr = b.asiento ? `Fila ${filaLabel(b.asiento.fila)} · Asiento ${b.asiento.col + 1}` : 'Sin asiento';
+        const estStr = b.estudiante ? `<br><small style="color:var(--text-muted)">Estudiante: ${b.estudiante}</small>` : '';
+        
+        return `
+          <div class="pelicula-item" style="justify-content:space-between;">
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+              <span style="font-size:1.5rem;">${icon}</span>
+              <div class="item-info">
+                <div class="item-title">${b.id} — ${seatStr}${estStr}</div>
+                <div class="item-sub">${pel ? pel.titulo : ''} · ${sala ? sala.nombre : b.sala}</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              ${puedeConfirmar ? `<button class="btn btn-primary" onclick="accionPagar('${b.id}')" style="padding:0.4rem 0.8rem;font-size:0.8rem;">✅ Pagado</button>` : ''}
+              ${puedeLiberdar ? `<button class="btn btn-danger" onclick="accionLiberar('${b.id}')" style="padding:0.4rem 0.8rem;font-size:0.8rem;">🗑️ Liberar</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function guardarPrecios() {
+      const pg = parseFloat(document.getElementById('precio-general').value);
+      const mon = document.getElementById('moneda').value;
+      if (isNaN(pg) || pg < 0) {
+        showToast('Ingresa un precio válido', 'error'); return;
+      }
+      const ok = await saveConfig({ precioGeneral: pg, moneda: mon });
+      if (ok) showToast('✅ Precio guardado', 'success');
       else showToast('Error al guardar', 'error');
     }
 
