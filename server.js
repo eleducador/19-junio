@@ -605,32 +605,32 @@ app.put('/api/boletos/:id/pagar', async (req, res) => {
   res.json({ ok: true, boleto: b });
 });
 
-// ── Auto-Liberación (1 Hora) ─────────────────
-setInterval(async () => {
-  const state = await loadDB();
-  if (!state.boletos) return;
-  
-  const now = Date.now();
-  let changed = false;
-  
-  for (const id in state.boletos) {
-    const b = state.boletos[id];
-    if (b.estado === 'reservado' && b.creadoAt) {
-      const createdAt = new Date(b.creadoAt).getTime();
-      // Si pasaron más de 60 minutos (3600000 ms)
-      if (now - createdAt > 86400000 ) {
-        delete state.boletos[id];
-        changed = true;
-      }
-    }
-  }
-  
-  if (changed) {
-    await saveDB(state);
-    broadcast('update', { type: 'auto_liberacion', stats: getStats(state) });
-    console.log('🧹 Se liberaron reservas vencidas (más de 1 hora).');
-  }
-}, 5 * 60 * 1000); // Revisar cada 5 minutos
+// ── Auto-Liberación (1 Hora) [DESACTIVADA] ─────────────────
+// setInterval(async () => {
+//   const state = await loadDB();
+//   if (!state.boletos) return;
+//   
+//   const now = Date.now();
+//   let changed = false;
+//   
+//   for (const id in state.boletos) {
+//     const b = state.boletos[id];
+//     if (b.estado === 'reservado' && b.creadoAt) {
+//       const createdAt = new Date(b.creadoAt).getTime();
+//       // Si pasaron más de 60 minutos (3600000 ms)
+//       if (now - createdAt > 3600000) {
+//         delete state.boletos[id];
+//         changed = true;
+//       }
+//     }
+//   }
+//   
+//   if (changed) {
+//     await saveDB(state);
+//     broadcast('update', { type: 'auto_liberacion', stats: getStats(state) });
+//     console.log('🧹 Se liberaron reservas vencidas (más de 1 hora).');
+//   }
+// }, 5 * 60 * 1000); // Revisar cada 5 minutos
 
 // ── Start ─────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
