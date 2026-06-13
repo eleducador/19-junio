@@ -618,7 +618,7 @@ setInterval(async () => {
     if (b.estado === 'reservado' && b.creadoAt) {
       const createdAt = new Date(b.creadoAt).getTime();
       // Si pasaron más de 60 minutos (3600000 ms)
-      if (now - createdAt > 3600000) {
+      if (now - createdAt > 86400000 ) {
         delete state.boletos[id];
         changed = true;
       }
